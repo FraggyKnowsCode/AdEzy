@@ -1,0 +1,141 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gig Details - AdEzy</title>
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+    {% include 'marketplace/header.html' %}
+
+    <!-- Gig Detail Container -->
+    <div class="container" style="margin-top: 100px; max-width: 1200px;">
+        <div id="gig-detail-container">
+            <div class="loading">Loading gig details...</div>
+        </div>
+    </div>
+
+    <!-- Order Modal -->
+    <div id="order-modal" class="modal hidden">
+        <div class="modal-overlay" onclick="closeModal()"></div>
+        <div class="modal-box">
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <div id="modal-content"></div>
+        </div>
+    </div>
+
+    <!-- Earnings Modal -->
+    <div id="earnings-modal" class="modal hidden">
+        <div class="modal-overlay" onclick="closeEarningsModal()"></div>
+        <div class="modal-box" style="max-width: 700px;">
+            <button class="modal-close" onclick="closeEarningsModal()">&times;</button>
+            <div id="earnings-modal-content">
+                <div class="loading">Loading earnings...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Messages Modal -->
+    <div id="messages-modal" class="modal" style="display: none;">
+        <div class="modal-overlay" onclick="closeMessagesModal()"></div>
+        <div class="modal-box" style="max-width: 700px;">
+            <button class="modal-close" onclick="closeMessagesModal()">&times;</button>
+            <div id="messages-modal-content">
+                <div class="loading">Loading messages...</div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{% static 'js/main.js' %}"></script>
+    <script>
+        // Load gig details when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            const gigId = window.location.pathname.split('/').filter(p => p)[1];
+            loadGigDetail(gigId);
+        });
+
+        async function loadGigDetail(gigId) {
+            const container = document.getElementById('gig-detail-container');
+            
+            try {
+                const response = await fetch(`/api/gigs/${gigId}/`);
+                
+                if (!response.ok) {
+                    throw new Error('Gig not found');
+                }
+                
+                const gig = await response.json();
+                
+                container.innerHTML = `
+                    <div class="gig-detail-layout">
+                        <div class="gig-detail-main">
+                            <div class="gig-detail-image-container">
+                                <img src="${gig.image_url}" alt="${gig.title}" class="gig-detail-image">
+                            </div>
+                            <div class="gig-detail-content">
+                                <h1 class="gig-detail-title">${gig.title}</h1>
+                                <div class="gig-detail-meta">
+                                    <span class="gig-detail-category">
+                                        <i class="fas fa-tag"></i> ${gig.category}
+                                    </span>
+                                    <span class="gig-detail-delivery">
+                                        <i class="fas fa-clock"></i> ${gig.delivery_time} days delivery
+                                    </span>
+                                </div>
+                                <div class="gig-detail-description">
+                                    <h3>About This Gig</h3>
+                                    <p>${gig.description}</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="gig-detail-sidebar">
+                            <div class="gig-order-card glass-panel">
+                                <div class="gig-price">
+                                    <span class="gig-price-label">Price</span>
+                                    <span class="gig-price-amount">${gig.price} Taka</span>
+                                </div>
+                                <div class="gig-seller-info">
+                                    <div class="gig-seller-avatar">
+                                        ${gig.seller_name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div>
+                                        <div class="gig-seller-label">Seller</div>
+                                        <div class="gig-seller-name">${gig.seller_name}</div>
+                                    </div>
+                                </div>
+                                {% if user.is_authenticated %}
+                                    <button class="btn btn-primary btn-block" onclick="handleOrder(${gig.id})">
+                                        <i class="fas fa-shopping-cart"></i> Order Now
+                                    </button>
+                                {% else %}
+                                    <a href="/login/" class="btn btn-primary btn-block">
+                                        <i class="fas fa-sign-in-alt"></i> Login to Order
+                                    </a>
+                                {% endif %}
+                                <div class="gig-delivery-info">
+                                    <i class="fas fa-shipping-fast"></i>
+                                    <span>Delivery in ${gig.delivery_time} days</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+            } catch (error) {
+                console.error('Error loading gig:', error);
+                container.innerHTML = `
+                    <div class="empty-state">
+                        <i class="fas fa-exclamation-circle" style="font-size: 4rem; color: #ef4444;"></i>
+                        <h2>Gig Not Found</h2>
+                        <p>The gig you're looking for doesn't exist or has been removed.</p>
+                        <a href="/" class="btn btn-primary">Back to Home</a>
+                    </div>
+                `;
+            }
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,56 @@
+{% extends 'marketplace/base.html' %}
+
+{% block title %}Dashboard - AdEzy{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h1 class="text-center mt-20 mb-20" style="font-size: 2.5rem; color: var(--deep-blue);">
+        Your Dashboard 📊
+    </h1>
+
+    <!-- Tab Buttons -->
+    <div class="tab-container">
+        <button class="tab-btn active" data-target="buyer-section">
+            Buyer View
+        </button>
+        <button class="tab-btn" data-target="seller-section">
+            Seller View
+        </button>
+    </div>
+
+    <!-- Buyer Section -->
+    <div id="buyer-section" class="dashboard-section active">
+        <div class="glass-panel">
+            <h2>My Orders (as Buyer)</h2>
+            <div id="buyer-orders-container">
+                <!-- Orders will be dynamically loaded here -->
+                <div class="loading">Loading your orders...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Seller Section -->
+    <div id="seller-section" class="dashboard-section">
+        <div class="glass-panel">
+            <h2>My Sales (as Seller)</h2>
+            <div id="seller-orders-container">
+                <!-- Sales will be dynamically loaded here -->
+                <div class="loading">Loading your sales...</div>
+            </div>
+        </div>
+
+        <div class="glass-panel mt-20">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0;">My Gigs</h2>
+                <a href="{% url 'create-gig' %}" class="btn btn-primary">
+                    <i class="fas fa-plus"></i> Create New Gig
+                </a>
+            </div>
+            <div id="my-gigs-container">
+                <!-- Gigs will be dynamically loaded here -->
+                <div class="loading">Loading your gigs...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

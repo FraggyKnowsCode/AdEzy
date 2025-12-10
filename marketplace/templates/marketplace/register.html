@@ -1,0 +1,97 @@
+{% extends 'marketplace/base.html' %}
+
+{% block title %}Register - AdEzy{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div style="max-width: 500px; margin: 60px auto;">
+        <div class="glass-panel">
+            <h2 style="text-align: center; margin-bottom: 30px;">Create Account</h2>
+            
+            {% if messages %}
+                {% for message in messages %}
+                    <div style="padding: 15px; margin-bottom: 20px; background: {% if message.tags == 'error' %}#fee; border: 1px solid #fcc{% else %}#efe; border: 1px solid #cfc{% endif %}; border-radius: 8px; color: var(--deep-blue);">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+            
+            <form method="post" action="{% url 'register' %}">
+                {% csrf_token %}
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--deep-blue);">
+                        Username
+                    </label>
+                    <input 
+                        type="text" 
+                        name="username" 
+                        class="search-input" 
+                        placeholder="Choose a username"
+                        required
+                        style="width: 100%;"
+                    >
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--deep-blue);">
+                        Email (optional)
+                    </label>
+                    <input 
+                        type="email" 
+                        name="email" 
+                        class="search-input" 
+                        placeholder="Your email address"
+                        style="width: 100%;"
+                    >
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--deep-blue);">
+                        Password
+                    </label>
+                    <input 
+                        type="password" 
+                        name="password" 
+                        class="search-input" 
+                        placeholder="Choose a password"
+                        required
+                        style="width: 100%;"
+                    >
+                </div>
+                
+                <div style="margin-bottom: 25px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--deep-blue);">
+                        Confirm Password
+                    </label>
+                    <input 
+                        type="password" 
+                        name="password2" 
+                        class="search-input" 
+                        placeholder="Confirm your password"
+                        required
+                        style="width: 100%;"
+                    >
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 15px;">
+                    Create Account
+                </button>
+            </form>
+            
+            <p style="text-align: center; margin-top: 20px; color: #64748b;">
+                Already have an account? 
+                <a href="{% url 'login' %}" style="color: var(--gold); font-weight: 600; text-decoration: none;">
+                    Login here
+                </a>
+            </p>
+            
+            <div style="margin-top: 30px; padding: 15px; background: #f1f5f9; border-radius: 8px;">
+                <p style="margin: 0; font-size: 0.9rem; color: #64748b; text-align: center;">
+                    New accounts start with <strong>5,000 Taka</strong>!
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

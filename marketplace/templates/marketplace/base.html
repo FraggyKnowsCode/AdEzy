@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}AdEzy - Freelance Marketplace{% endblock %}</title>
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    {% include 'marketplace/header.html' %}
+
+    <!-- Main Content -->
+    <main>
+        {% block content %}
+        {% endblock %}
+    </main>
+
+    <!-- Order Modal -->
+    <div id="order-modal" class="modal hidden">
+        <div class="modal-content" id="modal-content">
+            <!-- Content will be dynamically inserted by JavaScript -->
+        </div>
+    </div>
+
+    <!-- Earnings Modal -->
+    <div id="earnings-modal" class="modal hidden">
+        <div class="modal-content earnings-modal-content">
+            <h2>Earnings Breakdown</h2>
+            <div class="earnings-summary">
+                <div class="earning-card">
+                    <div class="earning-label">Total Earnings</div>
+                    <div class="earning-amount" id="total-earnings">0.00 Taka</div>
+                </div>
+                <div class="earning-card">
+                    <div class="earning-label">Completed Orders</div>
+                    <div class="earning-amount" id="total-orders">0</div>
+                </div>
+            </div>
+
+            <h3>Earnings by Gig</h3>
+            <div id="earnings-by-gig" class="earnings-list">
+                <div class="loading">Loading...</div>
+            </div>
+
+            <h3>Recent Earnings</h3>
+            <div id="recent-earnings" class="earnings-list">
+                <div class="loading">Loading...</div>
+            </div>
+
+            <button class="btn btn-secondary" onclick="closeEarningsModal()" style="margin-top: 20px;">Close</button>
+        </div>
+    </div>
+
+    <!-- JavaScript -->
+    <script src="/static/js/main.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

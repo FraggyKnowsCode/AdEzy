@@ -1,0 +1,133 @@
+{% extends 'marketplace/base.html' %}
+
+{% block title %}Create Gig - AdEzy{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div style="max-width: 700px; margin: 60px auto;">
+        <div class="glass-panel">
+            <h2 style="text-align: center; margin-bottom: 30px;">Create a New Gig</h2>
+            
+            {% if messages %}
+                {% for message in messages %}
+                    <div style="padding: 15px; margin-bottom: 20px; background: {% if message.tags == 'error' %}#fee; border: 1px solid #fcc{% else %}#efe; border: 1px solid #cfc{% endif %}; border-radius: 8px; color: var(--deep-blue);">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+            
+            <form method="post" action="{% url 'create-gig' %}" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--deep-blue);">
+                        Gig Title *
+                    </label>
+                    <input 
+                        type="text" 
+                        name="title" 
+                        class="search-input" 
+                        placeholder="E.g., I will create professional Facebook ads"
+                        required
+                        style="width: 100%;"
+                    >
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--deep-blue);">
+                        Description *
+                    </label>
+                    <textarea 
+                        name="description" 
+                        class="search-input" 
+                        placeholder="Describe your service in detail..."
+                        required
+                        rows="6"
+                        style="width: 100%; resize: vertical; font-family: inherit;"
+                    ></textarea>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--deep-blue);">
+                        Category
+                    </label>
+                    <select 
+                        name="category" 
+                        class="search-input" 
+                        style="width: 100%;"
+                    >
+                        <option value="">Select a category</option>
+                        {% for category in categories %}
+                            <option value="{{ category.id }}">{{ category.name }}</option>
+                        {% endfor %}
+                    </select>
+                    {% if not categories %}
+                        <p style="margin-top: 8px; font-size: 0.9rem; color: #64748b;">
+                            No categories available. <a href="/admin/marketplace/category/add/" target="_blank" style="color: var(--gold);">Add one in admin</a>
+                        </p>
+                    {% endif %}
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--deep-blue);">
+                            Price (Taka) *
+                        </label>
+                        <input 
+                            type="number" 
+                            name="price" 
+                            class="search-input" 
+                            placeholder="500"
+                            min="1"
+                            step="0.01"
+                            required
+                            style="width: 100%;"
+                        >
+                    </div>
+                    
+                    <div>
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--deep-blue);">
+                            Delivery Time (Days) *
+                        </label>
+                        <input 
+                            type="number" 
+                            name="delivery_time" 
+                            class="search-input" 
+                            placeholder="3"
+                            min="1"
+                            required
+                            style="width: 100%;"
+                        >
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 25px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--deep-blue);">
+                        Gig Image (Optional)
+                    </label>
+                    <input 
+                        type="file" 
+                        name="image" 
+                        accept="image/*"
+                        class="search-input"
+                        style="width: 100%; padding: 10px;"
+                    >
+                    <p style="margin-top: 8px; font-size: 0.9rem; color: #64748b;">
+                        Recommended: 800x600px or similar aspect ratio
+                    </p>
+                </div>
+                
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 15px;">
+                    Create Gig
+                </button>
+            </form>
+            
+            <p style="text-align: center; margin-top: 20px; color: #64748b;">
+                <a href="{% url 'dashboard' %}" style="color: var(--gold); font-weight: 600; text-decoration: none;">
+                    ← Back to Dashboard
+                </a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

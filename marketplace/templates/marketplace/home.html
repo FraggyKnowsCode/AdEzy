@@ -1,0 +1,140 @@
+{% extends 'marketplace/base.html' %}
+
+{% block title %}AdEzy - Freelance Marketplace for Online Advertising Services{% endblock %}
+
+{% block content %}
+<!-- Hero Section -->
+<div class="hero-banner">
+    <div class="container">
+        <div class="hero-content">
+            {% if user.is_authenticated %}
+                <h1 class="hero-title">Welcome back, {{ user.username }}</h1>
+                <p class="hero-subtitle">Find the perfect advertising services for your business</p>
+            {% else %}
+                <h1 class="hero-title">Find the perfect <span class="highlight">advertising services</span> for your business</h1>
+                <p class="hero-subtitle">Millions of people use AdEzy to turn their ideas into reality</p>
+            {% endif %}
+
+            <div class="hero-tags">
+                <span>Popular:</span>
+                <a href="#" class="tag">Social Media Marketing</a>
+                <a href="#" class="tag">Google Ads</a>
+                <a href="#" class="tag">Facebook Advertising</a>
+                <a href="#" class="tag">Content Writing</a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Category Section -->
+<section class="categories-section">
+    <div class="container">
+        <h2 class="section-title">Browse by category</h2>
+        <div class="categories-grid" id="categories-container">
+            <div class="category-card">
+                <div class="category-icon">📱</div>
+                <h3>Social Media Marketing</h3>
+            </div>
+            <div class="category-card">
+                <div class="category-icon">🎯</div>
+                <h3>Google Ads</h3>
+            </div>
+            <div class="category-card">
+                <div class="category-icon">📊</div>
+                <h3>Facebook Ads</h3>
+            </div>
+            <div class="category-card">
+                <div class="category-icon">✍️</div>
+                <h3>Content Writing</h3>
+            </div>
+            <div class="category-card">
+                <div class="category-icon">🎨</div>
+                <h3>Graphic Design</h3>
+            </div>
+            <div class="category-card">
+                <div class="category-icon">📧</div>
+                <h3>Email Marketing</h3>
+            </div>
+            <div class="category-card">
+                <div class="category-icon">🔍</div>
+                <h3>SEO Services</h3>
+            </div>
+            <div class="category-card">
+                <div class="category-icon">📹</div>
+                <h3>Video Ads</h3>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- Popular Services Section -->
+<section class="services-section">
+    <div class="container">
+        <div class="section-header">
+            <h2 class="section-title">Popular services</h2>
+            <div class="section-tabs">
+                <button class="tab-filter active" data-filter="all">All</button>
+                <button class="tab-filter" data-filter="top-rated">Top Rated</button>
+                <button class="tab-filter" data-filter="new">New Arrivals</button>
+            </div>
+        </div>
+
+        <!-- Search Results Info -->
+        <div id="search-results-info" style="display: none; margin-bottom: 20px; padding: 15px; background: #f1f5f9; border-radius: 8px; text-align: center; color: #64748b;">
+            <span id="search-results-text"></span>
+            <button onclick="clearSearch()" style="margin-left: 10px; background: none; border: none; color: var(--gold); cursor: pointer; text-decoration: underline;">Clear search</button>
+        </div>
+        
+        <!-- Gigs Container (Populated by JavaScript) -->
+        <div id="gig-container" class="gigs-grid">
+            <div class="loading">Discovering popular services...</div>
+        </div>
+    </div>
+</section>
+
+<!-- Features Section -->
+<section class="features-section">
+    <div class="container">
+        <h2 class="section-title text-center">Why choose AdEzy?</h2>
+        <div class="features-grid">
+            <div class="feature-card">
+                <div class="feature-icon">⚡</div>
+                <h3>Quick Turnaround</h3>
+                <p>Get your advertising campaigns launched in days, not weeks</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">💰</div>
+                <h3>Affordable Pricing</h3>
+                <p>Services starting from just 100 Taka. Pay only for what you need</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">⭐</div>
+                <h3>Quality Work</h3>
+                <p>Verified sellers with proven track records and reviews</p>
+            </div>
+            <div class="feature-card">
+                <div class="feature-icon">🔒</div>
+                <h3>Secure Payments</h3>
+                <p>Your money is protected until you're 100% satisfied</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<!-- CTA Section -->
+{% if not user.is_authenticated %}
+<section class="cta-section">
+    <div class="container">
+        <div class="cta-content">
+            <h2>Ready to get started?</h2>
+            <p>Join thousands of businesses growing with AdEzy</p>
+            <div class="cta-buttons">
+                <a href="{% url 'register' %}" class="btn btn-primary btn-large">Sign Up</a>
+                <a href="{% url 'login' %}" class="btn btn-secondary btn-large">Sign In</a>
+            </div>
+        </div>
+    </div>
+</section>
+{% endif %}
+
+{% endblock %}
