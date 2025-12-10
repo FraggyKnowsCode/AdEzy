@@ -1,21 +1,26 @@
-# AdEzy - Freelance Marketplace for Online Ad Services
+# AdEzy - Freelance Marketplace Platform
 
-A Django-based freelance marketplace with a **JavaScript-first architecture**, focusing on client-side rendering and dynamic DOM manipulation.
+A Django-based freelance marketplace where users can offer and purchase services (gigs), similar to Fiverr. Built with Django 4.2.7 and PostgreSQL (Supabase).
 
 ## 🎯 Key Features
 
-- **Buyer/Seller Profile Switching**: Users can switch between buyer and seller modes
-- **Virtual Credit System**: Demo-friendly currency system (no real money)
-- **Client-Side Rendering**: JavaScript fetches JSON and dynamically builds the UI
-- **Modern CSS**: Custom CSS with variables, animations, and glass-morphism effects
-- **No Page Reloads**: Search filtering and tab switching handled entirely in JavaScript
+- 👤 **User Authentication**: Separate sessions for admin and regular users
+- 🛍️ **Gig Management**: Create, update, and browse service offerings
+- 💬 **Messaging System**: Direct communication between buyers and sellers
+- 📦 **Order Management**: Track orders and transactions
+- ⭐ **Review System**: Rate and review completed services
+- 🔔 **Notifications**: Real-time notifications for important events
+- 🤖 **AI Integration**: Gemini API for enhanced features
+- 📊 **Admin Dashboard**: Comprehensive admin panel for platform management
 
 ## 🛠️ Tech Stack
 
-- **Backend**: Python 3.x, Django 4.2
-- **Database**: MySQL
-- **Frontend**: Vanilla JavaScript (ES6+), Custom CSS (Flexbox/Grid)
-- **Styling**: CSS Variables, Animations, Backdrop Filters
+- **Backend**: Django 4.2.7
+- **Database**: PostgreSQL (Supabase Cloud)
+- **Frontend**: HTML, CSS, JavaScript
+- **API**: Google Gemini AI
+- **Deployment**: Render.com
+- **Static Files**: WhiteNoise
 
 ## 📁 Project Structure
 
@@ -46,60 +51,68 @@ AdEzy/
 
 ## 🚀 Setup Instructions
 
-### 1. Install Dependencies
+### Prerequisites
+
+- Python 3.12.6 or higher
+- Git
+- pip (Python package manager)
+
+### 1. Clone the Repository
 
 ```bash
-# Create virtual environment (recommended)
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+git clone https://github.com/FraggyKnowsCode/AdEzy.git
+cd AdEzy
+```
 
-# Install packages
+### 2. Create Virtual Environment
+
+**Windows (Git Bash):**
+```bash
+python -m venv venv
+source venv/Scripts/activate
+```
+
+**Windows (CMD):**
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+**Mac/Linux:**
+```bash
+python -m venv venv
+source venv/bin/activate
+```
+
+### 3. Install Dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-### 2. Configure MySQL Database
+### 4. Configure Environment Variables
 
-Update `adezy/settings.py` with your MySQL credentials:
+Create a `.env` file in the project root:
 
-```python
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'adezy_db',
-        'USER': 'your_mysql_username',
-        'PASSWORD': 'your_mysql_password',
-        'HOST': 'localhost',
-        'PORT': '3306',
-    }
-}
+```env
+USE_SUPABASE=True
+SUPABASE_DB_HOST=aws-1-ap-southeast-1.pooler.supabase.com
+SUPABASE_DB_NAME=postgres
+SUPABASE_DB_USER=postgres.friagzimveexfizdlmqf
+SUPABASE_DB_PASSWORD=your_password_here
+SUPABASE_DB_PORT=5432
+GEMINI_API_KEY=your_gemini_api_key_here
+DEBUG=True
+SECRET_KEY=your_secret_key_here
 ```
 
-Create the database:
+### 5. Run Migrations (Optional)
 
-```sql
-CREATE DATABASE adezy_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-```
-
-### 3. Run Migrations
+Database migrations are already applied on Supabase. If needed:
 
 ```bash
-python manage.py makemigrations
 python manage.py migrate
 ```
-
-### 4. Create Superuser
-
-```bash
-python manage.py createsuperuser
-```
-
-### 5. Create Sample Data
-
-After creating a superuser, log in to the Django admin panel and create:
-
-1. **Categories**: e.g., "Social Media Marketing", "Google Ads", "SEO", "Content Writing"
-2. **User Profiles**: Create profiles for test users with virtual credits
-3. **Gigs**: Create sample gigs with images, prices, and descriptions
 
 ### 6. Run Development Server
 
@@ -111,126 +124,105 @@ Visit `http://127.0.0.1:8000/` to see the app!
 
 ## 📋 Database Models
 
-### UserProfile
-- Links to Django User model
-- Tracks virtual credits balance
-- Boolean flag for buyer/seller mode switching
+- **User**: Extended Django user model
+- **UserProfile**: User profile with additional information
+- **Category**: Service categories (8 predefined categories)
+- **Gig**: Service offerings
+- **Order**: Purchase transactions
+- **Message**: User-to-user messaging
+- **Transaction**: Payment records
+- **Review**: Service reviews and ratings
+- **Notification**: User notifications
 
-### Gig
-- Title, description, price, delivery time
-- Links to seller (User) and Category
-- Image field for gig thumbnails
-- Status field (active/paused/draft)
+## 📂 Project Structure
 
-### Order
-- Links buyer, seller, and gig
-- Tracks order status (pending → in_progress → delivered → completed)
-- Stores requirements and delivery notes
-
-### Transaction
-- Records all virtual credit movements
-- Types: credit, debit, refund, earning
-- Links to related order
-
-### Review
-- One review per order
-- Rating (1-5 stars) and comment
-
-## 🎨 CSS Architecture
-
-### CSS Variables (`:root`)
-```css
---deep-blue: #0f172a
---gold: #fbbf24
---white: #ffffff
+```
+AdEzy/
+├── adezy/                  # Main project settings
+│   ├── settings.py         # Django settings with Supabase config
+│   ├── urls.py            # URL routing
+│   └── wsgi.py            # WSGI configuration
+├── marketplace/           # Main application
+│   ├── models.py          # Database models
+│   ├── views.py           # View logic
+│   ├── urls.py            # App URL routing
+│   ├── admin.py           # Admin configuration
+│   ├── middleware.py      # Custom middleware for sessions
+│   └── templates/         # HTML templates
+├── static/               # Static files (CSS, JS, images)
+├── media/                # User uploaded files
+├── requirements.txt      # Python dependencies
+├── manage.py            # Django management script
+├── Procfile             # Render.com deployment config
+├── build.sh             # Build script for deployment
+└── runtime.txt          # Python version specification
 ```
 
-### Key Classes
-- `.gig-card`: Grid-based card with hover effects
-- `.glass-panel`: Backdrop-filter glass-morphism effect
-- `.modal`: Animated modal with fade-in
-- `.tab-btn`: Dashboard tab switching buttons
+## 🌐 Categories
 
-### Animations
-- `@keyframes fade-in`: Smooth entrance for dynamic elements
-- `@keyframes spin`: Loading spinner
-- `@keyframes checkmark-stroke`: Success checkmark animation
+The platform includes 8 service categories:
+- Social Media Marketing
+- Google Ads
+- Content Writing
+- Graphic Design
+- Video Ads
+- Email Marketing
+- SEO Services
+- Analytics & Reports
 
-## 💻 JavaScript Architecture
+## 🚀 Deployment
 
-### Core Functions
+The application is deployed on Render.com and uses Supabase for the database.
 
-**`loadGigs()`**
-- Fetches gigs from `/api/gigs/`
-- Uses `document.createElement()` to build DOM
-- Applies `fade-in` animation with staggered delays
+**Live URL**: [https://adezy.onrender.com](https://adezy.onrender.com) (if deployed)
 
-**`renderGigs(gigs)`**
-- Clears container with `innerHTML = ''`
-- Iterates through gigs array
-- Creates card elements dynamically
+### Deploy to Render
 
-**`setupSearchListener()`**
-- Listens to search input
-- Filters `allGigs` array client-side
-- Re-renders without page reload
+1. Fork/Clone this repository
+2. Create a new Web Service on Render.com
+3. Connect your GitHub repository
+4. Configure environment variables (same as `.env` file)
+5. Render will automatically deploy using `build.sh` and `Procfile`
 
-**`handleOrder(gigId)`**
-- Shows modal with loading spinner
-- Simulates 2-second delay with `setTimeout()`
-- Sends POST request to `/api/orders/create/`
-- Shows success checkmark or error message
-- Updates navbar balance via DOM manipulation
+## 🎯 Usage
 
-**`setupDashboardTabs()`**
-- Selects all `.tab-btn` elements
-- Toggles `.active` class on click
-- Shows/hides sections with CSS transitions
+### Admin Panel
+Access the admin panel at `/admin/` with superuser credentials.
 
-## 🔌 API Endpoints
+### User Registration
+New users can register at `/register/` and start offering or purchasing services.
 
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/api/gigs/` | Get all active gigs (JSON) |
-| GET | `/api/gigs/<id>/` | Get single gig details |
-| POST | `/api/orders/create/` | Create new order |
-| GET | `/api/orders/buyer/` | Get user's purchases |
-| GET | `/api/orders/seller/` | Get user's sales |
-| GET | `/api/user/balance/` | Get current balance |
-| GET | `/api/categories/` | Get all categories |
+### Creating a Gig
+1. Log in to your account
+2. Navigate to Dashboard
+3. Click "Create Gig"
+4. Fill in service details and submit
 
-## 🎓 Educational Goals
+## 🤝 Contributing
 
-This project demonstrates:
-
-✅ **Separation of Concerns**: Django serves data (JSON), JavaScript handles presentation  
-✅ **Modern JavaScript**: Fetch API, async/await, DOM manipulation, event delegation  
-✅ **CSS Skills**: Variables, Grid, Flexbox, animations, pseudo-elements  
-✅ **RESTful API Design**: Clean JSON endpoints  
-✅ **State Management**: Global `allGigs` array, filtering without backend calls  
-✅ **User Experience**: Loading states, error handling, smooth transitions  
-
-## 📝 Next Steps
-
-- [ ] Add user authentication views (login/register)
-- [ ] Implement profile switching UI
-- [ ] Add file upload for gig creation
-- [ ] Build order status update functionality
-- [ ] Add real-time notifications
-- [ ] Implement review system UI
-
-## 🎯 University Demo Tips
-
-1. **Showcase JavaScript Skills**: Emphasize how search works without reloading
-2. **Explain CSS Animations**: Demonstrate fade-in and checkmark animations
-3. **Highlight API Design**: Show how JSON endpoints work with fetch()
-4. **Demo Virtual Credits**: Show order flow and balance updates
-5. **Show Responsive Design**: Test on different screen sizes
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
 
 ## 📄 License
 
-Educational project for university coursework.
+This project is created for educational purposes.
+
+## 📧 Contact
+
+**Developer**: Fahad Sikder  
+**GitHub**: [@FraggyKnowsCode](https://github.com/FraggyKnowsCode)  
+**Repository**: [AdEzy](https://github.com/FraggyKnowsCode/AdEzy)
+
+## 🙏 Acknowledgments
+
+- Django Documentation
+- Supabase Documentation
+- Google Gemini AI
+- Render.com Platform
 
 ---
 
-**Built with ❤️ for learning JavaScript, CSS, and Django integration**
+**Built with ❤️ for learning Django and cloud deployment**
