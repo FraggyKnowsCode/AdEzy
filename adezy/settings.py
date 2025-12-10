@@ -4,17 +4,18 @@ Django settings for adezy project.
 
 from pathlib import Path
 import os
-import pymysql
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
 
-# Use pymysql as MySQLdb replacement
-pymysql.install_as_MySQLdb()
+# Use pymysql as MySQLdb replacement (only if not using Supabase)
+USE_SUPABASE = os.getenv('USE_SUPABASE', 'False') == 'True'
+if not USE_SUPABASE:
+    import pymysql
+    pymysql.install_as_MySQLdb()
 
 # Supabase configuration
-USE_SUPABASE = os.getenv('USE_SUPABASE', 'False') == 'True'
 SUPABASE_DB_HOST = os.getenv('SUPABASE_DB_HOST', '')
 SUPABASE_DB_NAME = os.getenv('SUPABASE_DB_NAME', 'postgres')
 SUPABASE_DB_USER = os.getenv('SUPABASE_DB_USER', 'postgres')
