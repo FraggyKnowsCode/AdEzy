@@ -50,28 +50,50 @@
                     <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--deep-blue);">
                         Password
                     </label>
-                    <input 
-                        type="password" 
-                        name="password" 
-                        class="search-input" 
-                        placeholder="Choose a password"
-                        required
-                        style="width: 100%;"
-                    >
+                    <div style="position: relative;">
+                        <input 
+                            type="password" 
+                            name="password" 
+                            id="register-password"
+                            class="search-input" 
+                            placeholder="Choose a password"
+                            required
+                            style="width: 100%; padding-right: 45px;"
+                        >
+                        <button 
+                            type="button" 
+                            onclick="togglePassword('register-password', this)"
+                            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 5px; color: #64748b; font-size: 1.2rem;"
+                            aria-label="Toggle password visibility"
+                        >
+                            👁️
+                        </button>
+                    </div>
                 </div>
                 
                 <div style="margin-bottom: 25px;">
                     <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--deep-blue);">
                         Confirm Password
                     </label>
-                    <input 
-                        type="password" 
-                        name="password2" 
-                        class="search-input" 
-                        placeholder="Confirm your password"
-                        required
-                        style="width: 100%;"
-                    >
+                    <div style="position: relative;">
+                        <input 
+                            type="password" 
+                            name="password2" 
+                            id="register-password2"
+                            class="search-input" 
+                            placeholder="Confirm your password"
+                            required
+                            style="width: 100%; padding-right: 45px;"
+                        >
+                        <button 
+                            type="button" 
+                            onclick="togglePassword('register-password2', this)"
+                            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 5px; color: #64748b; font-size: 1.2rem;"
+                            aria-label="Toggle password visibility"
+                        >
+                            👁️
+                        </button>
+                    </div>
                 </div>
                 
                 <button type="submit" class="btn btn-primary" style="width: 100%; padding: 15px;">
@@ -94,4 +116,17 @@
         </div>
     </div>
 </div>
+
+<script>
+function togglePassword(inputId, button) {
+    const input = document.getElementById(inputId);
+    if (input.type === 'password') {
+        input.type = 'text';
+        button.textContent = '🙈';
+    } else {
+        input.type = 'password';
+        button.textContent = '👁️';
+    }
+}
+</script>
 {% endblock %}

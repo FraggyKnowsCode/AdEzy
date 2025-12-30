@@ -1,283 +1,584 @@
 {% extends 'marketplace/base.html' %}
 
-{% block title %}AI Poster Generator - AdEzy{% endblock %}
+{% block title %}AI Content Generator - AdEzy{% endblock %}
+
+{% block extra_css %}
+<style>
+.mode-selector {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+    margin-bottom: 40px;
+}
+
+.mode-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    padding: 25px 40px;
+    background: white;
+    border: 3px solid #e2e8f0;
+    border-radius: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-width: 200px;
+}
+
+.mode-btn:hover {
+    border-color: var(--gold);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(212, 175, 55, 0.2);
+}
+
+.mode-btn.active {
+    border-color: var(--gold);
+    background: linear-gradient(135deg, #fff8e1 0%, #ffffff 100%);
+    box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
+}
+
+.mode-btn i {
+    font-size: 2.5rem;
+    color: var(--gold);
+}
+
+.mode-btn span {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: var(--deep-blue);
+}
+
+.mode-btn small {
+    font-size: 0.85rem;
+    color: #64748b;
+}
+
+.checkbox-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 15px;
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.checkbox-card:hover {
+    border-color: var(--gold);
+    background: #fff8e1;
+}
+
+.checkbox-card input[type="checkbox"] {
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.checkbox-card input[type="checkbox"]:checked + span {
+    font-weight: 600;
+    color: var(--deep-blue);
+}
+
+.result-box {
+    padding: 25px;
+    background: #f8fafc;
+    border: 2px solid #e2e8f0;
+    border-radius: 12px;
+    margin-bottom: 20px;
+}
+
+.result-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #e2e8f0;
+}
+
+.result-header h4 {
+    color: var(--deep-blue);
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.copy-btn {
+    padding: 8px 16px;
+    background: var(--gold);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s ease;
+}
+
+.copy-btn:hover {
+    background: var(--deep-blue);
+    transform: scale(1.05);
+}
+
+.result-content {
+    color: var(--deep-blue);
+    line-height: 1.8;
+    white-space: pre-wrap;
+}
+
+.empty-result {
+    text-align: center;
+    padding: 60px 20px;
+    color: #94a3b8;
+}
+
+.empty-result i {
+    font-size: 4rem;
+    margin-bottom: 20px;
+    color: #cbd5e1;
+}
+
+.generated-image-container {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+}
+
+.generated-image-container img {
+    width: 100%;
+    display: block;
+}
+
+.download-btn {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    padding: 12px 20px;
+    background: var(--gold);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    transition: all 0.2s ease;
+}
+
+.download-btn:hover {
+    background: var(--deep-blue);
+    transform: scale(1.05);
+}
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="container" style="max-width: 1200px; margin: 40px auto; padding: 0 20px;">
-    <div class="glass-panel" style="padding: 40px;">
-        <div style="text-align: center; margin-bottom: 40px;">
-            <h1 style="font-size: 2.5rem; color: var(--deep-blue); margin-bottom: 10px;">
-                <i class="fas fa-magic" style="color: var(--gold);"></i> AI Poster Generator
-            </h1>
-            <p style="color: #64748b; font-size: 1.1rem;">
-                Create stunning social media posters with AI-powered design
-            </p>
-        </div>
-
-        {% if messages %}
-            {% for message in messages %}
-                <div style="padding: 15px; margin-bottom: 20px; background: {% if message.tags == 'error' %}#fee; border: 1px solid #fcc{% else %}#efe; border: 1px solid #cfc{% endif %}; border-radius: 8px; color: var(--deep-blue);">
-                    {{ message }}
+<div class="container" style="max-width: 1400px; margin: 0 auto; padding: 30px 20px;">
+    <h1 style="color: var(--deep-blue); margin-bottom: 15px; text-align: center; font-size: 2.5rem;">
+        <i class="fas fa-magic" style="color: var(--gold);"></i> AI Content Generator
+    </h1>
+    <p style="text-align: center; color: #64748b; font-size: 1.1rem; margin-bottom: 40px;">
+        Create engaging captions, hashtags, and product images for your social media marketing
+    </p>
+    
+    <!-- Mode Selector -->
+    <div class="mode-selector">
+        <button id="text-to-text-btn" class="mode-btn active" onclick="switchMode('text-to-text')">
+            <i class="fas fa-pen-fancy"></i>
+            <span>Text to Text</span>
+            <small>Captions & Hashtags</small>
+        </button>
+        <button id="text-to-image-btn" class="mode-btn" onclick="switchMode('text-to-image')">
+            <i class="fas fa-image"></i>
+            <span>Text to Image</span>
+            <small>Product Pictures</small>
+        </button>
+    </div>
+    
+    <div class="row">
+        <!-- Left Side: Input Form -->
+        <div class="col-md-6">
+            <div class="glass-panel" style="padding: 30px;">
+                <!-- Text to Text Mode -->
+                <div id="text-to-text-mode" class="generation-mode">
+                    <h3 style="color: var(--deep-blue); margin-bottom: 25px; display: flex; align-items: center;">
+                        <i class="fas fa-pen-fancy" style="color: var(--gold); margin-right: 10px;"></i>
+                        Generate Marketing Content
+                    </h3>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label style="color: var(--deep-blue); font-weight: 600; margin-bottom: 8px; display: block;">
+                            Product Description
+                        </label>
+                        <textarea id="text-product-desc" 
+                            placeholder="Describe your product... (e.g., Handmade leather wallet, eco-friendly, premium quality)"
+                            style="width: 100%; padding: 15px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem; min-height: 100px; resize: vertical;"
+                        ></textarea>
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label style="color: var(--deep-blue); font-weight: 600; margin-bottom: 8px; display: block;">
+                            Target Audience
+                        </label>
+                        <input type="text" id="text-target-audience" 
+                            placeholder="e.g., Young professionals, Fashion enthusiasts, Gift buyers"
+                            style="width: 100%; padding: 15px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem;"
+                        >
+                    </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label style="color: var(--deep-blue); font-weight: 600; margin-bottom: 8px; display: block;">
+                            Platform
+                        </label>
+                        <select id="text-platform" style="width: 100%; padding: 15px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem;">
+                            <option value="instagram">Instagram</option>
+                            <option value="facebook">Facebook</option>
+                            <option value="twitter">Twitter/X</option>
+                            <option value="linkedin">LinkedIn</option>
+                            <option value="general">General Social Media</option>
+                        </select>
+                    </div>
+                    
+                    <div style="margin-bottom: 25px;">
+                        <label style="color: var(--deep-blue); font-weight: 600; margin-bottom: 8px; display: block;">
+                            Content Type
+                        </label>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                            <label class="checkbox-card">
+                                <input type="checkbox" id="gen-caption" checked>
+                                <span>Caption</span>
+                            </label>
+                            <label class="checkbox-card">
+                                <input type="checkbox" id="gen-hashtags" checked>
+                                <span>Hashtags</span>
+                            </label>
+                            <label class="checkbox-card">
+                                <input type="checkbox" id="gen-cta">
+                                <span>Call to Action</span>
+                            </label>
+                            <label class="checkbox-card">
+                                <input type="checkbox" id="gen-hooks">
+                                <span>Hook Lines</span>
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <button onclick="generateText()" class="btn btn-primary" style="width: 100%; padding: 15px; font-size: 1.1rem;">
+                        <i class="fas fa-magic"></i> Generate Content
+                    </button>
                 </div>
-            {% endfor %}
-        {% endif %}
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
-            <!-- Left Column: Upload Section -->
-            <div>
-                <div class="upload-section" style="margin-bottom: 25px;">
-                    <h3 style="color: var(--deep-blue); margin-bottom: 15px; display: flex; align-items: center;">
+                
+                <!-- Text to Image Mode -->
+                <div id="text-to-image-mode" class="generation-mode" style="display: none;">
+                    <h3 style="color: var(--deep-blue); margin-bottom: 25px; display: flex; align-items: center;">
                         <i class="fas fa-image" style="color: var(--gold); margin-right: 10px;"></i>
-                        Product Image
+                        Generate Product Picture
                     </h3>
-                    <div class="upload-area" id="product-upload-area">
-                        <input type="file" id="product-image" accept="image/*" style="display: none;">
-                        <label for="product-image" class="upload-label">
-                            <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--gold); margin-bottom: 15px;"></i>
-                            <p style="color: var(--deep-blue); font-weight: 600; margin-bottom: 5px;">Click to upload product image</p>
-                            <p style="color: #64748b; font-size: 0.9rem;">PNG, JPG up to 10MB</p>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label style="color: var(--deep-blue); font-weight: 600; margin-bottom: 8px; display: block;">
+                            Product Type
                         </label>
-                        <div id="product-preview" class="image-preview" style="display: none;">
-                            <img id="product-preview-img" src="" alt="Product preview">
-                            <button onclick="removeProductImage()" class="remove-btn">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
+                        <input type="text" id="image-product-type" 
+                            placeholder="e.g., Leather wallet, Coffee mug, T-shirt"
+                            style="width: 100%; padding: 15px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem;"
+                        >
                     </div>
-                </div>
-
-                <div class="upload-section" style="margin-bottom: 25px;">
-                    <h3 style="color: var(--deep-blue); margin-bottom: 15px; display: flex; align-items: center;">
-                        <i class="fas fa-trademark" style="color: var(--gold); margin-right: 10px;"></i>
-                        Brand Logo (Optional)
-                    </h3>
-                    <div class="upload-area" id="logo-upload-area">
-                        <input type="file" id="logo-image" accept="image/*" style="display: none;">
-                        <label for="logo-image" class="upload-label">
-                            <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--gold); margin-bottom: 15px;"></i>
-                            <p style="color: var(--deep-blue); font-weight: 600; margin-bottom: 5px;">Click to upload brand logo</p>
-                            <p style="color: #64748b; font-size: 0.9rem;">PNG, JPG with transparency recommended</p>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label style="color: var(--deep-blue); font-weight: 600; margin-bottom: 8px; display: block;">
+                            Style & Features
                         </label>
-                        <div id="logo-preview" class="image-preview" style="display: none;">
-                            <img id="logo-preview-img" src="" alt="Logo preview">
-                            <button onclick="removeLogoImage()" class="remove-btn">
-                                <i class="fas fa-times"></i>
-                            </button>
-                        </div>
+                        <textarea id="image-style" 
+                            placeholder="Describe the style, colors, features... (e.g., Minimalist design, brown leather, gold zipper, elegant)"
+                            style="width: 100%; padding: 15px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem; min-height: 100px; resize: vertical;"
+                        ></textarea>
                     </div>
-                </div>
-
-                <div class="description-section">
-                    <h3 style="color: var(--deep-blue); margin-bottom: 15px; display: flex; align-items: center;">
-                        <i class="fas fa-align-left" style="color: var(--gold); margin-right: 10px;"></i>
-                        Poster Description
-                    </h3>
-                    <textarea 
-                        id="poster-description" 
-                        class="search-input" 
-                        placeholder="E.g., Create a vibrant summer sale poster for organic skincare products, emphasizing natural ingredients and 30% discount..."
-                        rows="6"
-                        style="width: 100%; resize: vertical; font-family: inherit;"
-                    ></textarea>
-                    <p style="margin-top: 10px; color: #64748b; font-size: 0.9rem;">
-                        <i class="fas fa-info-circle"></i> Be specific about colors, mood, text to include, and target audience
-                    </p>
-                </div>
-
-                <button onclick="generatePoster()" id="generate-btn" class="btn btn-primary" style="width: 100%; padding: 15px; margin-top: 20px; font-size: 1.1rem;">
-                    <i class="fas fa-magic"></i> Generate Poster
-                </button>
-            </div>
-
-            <!-- Right Column: Preview Section -->
-            <div>
-                <div class="preview-section">
-                    <h3 style="color: var(--deep-blue); margin-bottom: 15px; display: flex; align-items: center;">
-                        <i class="fas fa-eye" style="color: var(--gold); margin-right: 10px;"></i>
-                        Generated Poster
-                    </h3>
-                    <div id="poster-result" class="poster-result-area">
-                        <div class="empty-state">
-                            <i class="fas fa-image" style="font-size: 4rem; color: #cbd5e1; margin-bottom: 20px;"></i>
-                            <p style="color: #64748b; font-size: 1.1rem; margin-bottom: 10px;">Your poster will appear here</p>
-                            <p style="color: #94a3b8; font-size: 0.95rem;">Upload images and add description to get started</p>
-                        </div>
+                    
+                    <div style="margin-bottom: 20px;">
+                        <label style="color: var(--deep-blue); font-weight: 600; margin-bottom: 8px; display: block;">
+                            Background Setting
+                        </label>
+                        <select id="image-background" style="width: 100%; padding: 15px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem;">
+                            <option value="white">Clean White Background</option>
+                            <option value="gradient">Modern Gradient</option>
+                            <option value="wooden">Wooden Table</option>
+                            <option value="marble">Marble Surface</option>
+                            <option value="lifestyle">Lifestyle Setting</option>
+                            <option value="nature">Natural/Outdoor</option>
+                            <option value="studio">Professional Studio</option>
+                        </select>
                     </div>
-
-                    <!-- Generated Description -->
-                    <div id="generated-description-section" style="display: none; margin-top: 25px;">
-                        <h3 style="color: var(--deep-blue); margin-bottom: 15px; display: flex; align-items: center;">
-                            <i class="fas fa-comment-dots" style="color: var(--gold); margin-right: 10px;"></i>
-                            AI-Generated Caption
-                        </h3>
-                        <div id="generated-description" style="padding: 20px; background: #f8fafc; border-radius: 12px; border: 2px solid var(--gold); color: var(--deep-blue); line-height: 1.6;">
-                            <!-- Generated description will appear here -->
-                        </div>
-                        <button onclick="copyDescription()" class="btn btn-secondary" style="width: 100%; margin-top: 15px;">
-                            <i class="fas fa-copy"></i> Copy Caption
-                        </button>
+                    
+                    <div style="margin-bottom: 25px;">
+                        <label style="color: var(--deep-blue); font-weight: 600; margin-bottom: 8px; display: block;">
+                            Image Format
+                        </label>
+                        <select id="image-format" style="width: 100%; padding: 15px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 1rem;">
+                            <option value="square">Square (1080x1080) - Instagram Post</option>
+                            <option value="portrait">Portrait (1080x1350) - Instagram</option>
+                            <option value="story">Story (1080x1920) - Instagram Story</option>
+                            <option value="landscape">Landscape (1200x628) - Facebook</option>
+                        </select>
                     </div>
-
-                    <!-- Download Section -->
-                    <div id="download-section" style="display: none; margin-top: 25px;">
-                        <button onclick="downloadPoster()" class="btn btn-primary" style="width: 100%; padding: 15px;">
-                            <i class="fas fa-download"></i> Download Poster
-                        </button>
-                    </div>
+                    
+                    <button onclick="generateImage()" class="btn btn-primary" style="width: 100%; padding: 15px; font-size: 1.1rem;">
+                        <i class="fas fa-magic"></i> Generate Image
+                    </button>
                 </div>
             </div>
         </div>
-
-        <!-- Generation Progress -->
-        <div id="generation-progress" class="generation-progress" style="display: none;">
-            <div class="progress-content">
-                <div class="spinner"></div>
-                <p style="margin-top: 20px; color: var(--deep-blue); font-weight: 600;">Generating your poster...</p>
-                <p style="color: #64748b; margin-top: 10px;">This may take 10-20 seconds</p>
+        
+        <!-- Right Side: Results -->
+        <div class="col-md-6">
+            <div class="glass-panel" style="padding: 30px; min-height: 600px;">
+                <!-- Text Results -->
+                <div id="text-results" class="results-container">
+                    <div class="empty-result">
+                        <i class="fas fa-sparkles"></i>
+                        <p style="font-size: 1.1rem; margin-bottom: 10px;">Your generated content will appear here</p>
+                        <p style="font-size: 0.95rem;">Fill in the details and click generate</p>
+                    </div>
+                </div>
+                
+                <!-- Image Results -->
+                <div id="image-results" class="results-container" style="display: none;">
+                    <div class="empty-result">
+                        <i class="fas fa-image"></i>
+                        <p style="font-size: 1.1rem; margin-bottom: 10px;">Your generated image will appear here</p>
+                        <p style="font-size: 0.95rem;">Describe your product and click generate</p>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- Loading Overlay -->
+<div id="generation-progress" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999; justify-content: center; align-items: center;">
+    <div style="text-align: center;">
+        <div class="spinner" style="border: 4px solid #f3f3f3; border-top: 4px solid var(--gold); border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin: 0 auto;"></div>
+        <p id="progress-text" style="margin-top: 20px; color: white; font-weight: 600; font-size: 1.2rem;">Generating...</p>
+    </div>
+</div>
+
 <script>
-let productImageFile = null;
-let logoImageFile = null;
-let generatedPosterUrl = null;
+let currentMode = 'text-to-text';
 
-// Product image upload
-document.getElementById('product-image').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (file) {
-        productImageFile = file;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            document.getElementById('product-preview-img').src = e.target.result;
-            document.getElementById('product-preview').style.display = 'block';
-            document.querySelector('#product-upload-area .upload-label').style.display = 'none';
-        };
-        reader.readAsDataURL(file);
-    }
-});
-
-// Logo image upload
-document.getElementById('logo-image').addEventListener('change', function(e) {
-    const file = e.target.files[0];
-    if (file) {
-        logoImageFile = file;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            document.getElementById('logo-preview-img').src = e.target.result;
-            document.getElementById('logo-preview').style.display = 'block';
-            document.querySelector('#logo-upload-area .upload-label').style.display = 'none';
-        };
-        reader.readAsDataURL(file);
-    }
-});
-
-function removeProductImage() {
-    productImageFile = null;
-    document.getElementById('product-image').value = '';
-    document.getElementById('product-preview').style.display = 'none';
-    document.querySelector('#product-upload-area .upload-label').style.display = 'flex';
-}
-
-function removeLogoImage() {
-    logoImageFile = null;
-    document.getElementById('logo-image').value = '';
-    document.getElementById('logo-preview').style.display = 'none';
-    document.querySelector('#logo-upload-area .upload-label').style.display = 'flex';
-}
-
-async function generatePoster() {
-    const description = document.getElementById('poster-description').value.trim();
+function switchMode(mode) {
+    currentMode = mode;
     
-    if (!productImageFile) {
-        alert('Please upload a product image');
+    // Update buttons
+    document.getElementById('text-to-text-btn').classList.toggle('active', mode === 'text-to-text');
+    document.getElementById('text-to-image-btn').classList.toggle('active', mode === 'text-to-image');
+    
+    // Update forms
+    document.getElementById('text-to-text-mode').style.display = mode === 'text-to-text' ? 'block' : 'none';
+    document.getElementById('text-to-image-mode').style.display = mode === 'text-to-image' ? 'block' : 'none';
+    
+    // Update results
+    document.getElementById('text-results').style.display = mode === 'text-to-text' ? 'block' : 'none';
+    document.getElementById('image-results').style.display = mode === 'text-to-image' ? 'block' : 'none';
+}
+
+async function generateText() {
+    const productDesc = document.getElementById('text-product-desc').value.trim();
+    const targetAudience = document.getElementById('text-target-audience').value.trim();
+    const platform = document.getElementById('text-platform').value;
+    
+    const genCaption = document.getElementById('gen-caption').checked;
+    const genHashtags = document.getElementById('gen-hashtags').checked;
+    const genCTA = document.getElementById('gen-cta').checked;
+    const genHooks = document.getElementById('gen-hooks').checked;
+    
+    if (!productDesc) {
+        alert('Please enter a product description');
         return;
     }
     
-    if (!description) {
-        alert('Please add a description for your poster');
-        return;
-    }
-    
-    const generateBtn = document.getElementById('generate-btn');
     const progressDiv = document.getElementById('generation-progress');
-    
-    // Show progress
-    generateBtn.disabled = true;
+    const progressText = document.getElementById('progress-text');
+    progressText.textContent = 'Generating your marketing content...';
     progressDiv.style.display = 'flex';
     
     try {
-        const formData = new FormData();
-        formData.append('product_image', productImageFile);
-        if (logoImageFile) {
-            formData.append('logo_image', logoImageFile);
-        }
-        formData.append('description', description);
-        
-        const response = await fetch('/api/generate-poster/', {
+        const response = await fetch('/api/generate-text-content/', {
             method: 'POST',
             headers: {
+                'Content-Type': 'application/json',
                 'X-CSRFToken': '{{ csrf_token }}'
             },
-            body: formData
+            body: JSON.stringify({
+                product_desc: productDesc,
+                target_audience: targetAudience,
+                platform: platform,
+                gen_caption: genCaption,
+                gen_hashtags: genHashtags,
+                gen_cta: genCTA,
+                gen_hooks: genHooks
+            })
         });
         
         const data = await response.json();
         
         if (data.success) {
-            // Display generated poster
-            const posterResult = document.getElementById('poster-result');
-            posterResult.innerHTML = `
-                <img src="${data.poster_url}" alt="Generated poster" style="width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-            `;
-            
-            // Display generated description
-            if (data.description) {
-                document.getElementById('generated-description').textContent = data.description;
-                document.getElementById('generated-description-section').style.display = 'block';
-            }
-            
-            // Show download button
-            document.getElementById('download-section').style.display = 'block';
-            generatedPosterUrl = data.poster_url;
-            
-            // Scroll to result
-            posterResult.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            displayTextResults(data.content);
         } else {
-            alert('Error: ' + (data.error || 'Failed to generate poster'));
+            alert('Error: ' + (data.error || 'Failed to generate content'));
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('An error occurred while generating the poster. Please try again.');
+        alert('An error occurred. Please try again.');
     } finally {
-        generateBtn.disabled = false;
         progressDiv.style.display = 'none';
     }
 }
 
-function copyDescription() {
-    const description = document.getElementById('generated-description').textContent;
-    navigator.clipboard.writeText(description).then(() => {
-        const btn = event.target.closest('button');
-        const originalHTML = btn.innerHTML;
-        btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
-        btn.style.background = '#10b981';
+function displayTextResults(content) {
+    const resultsDiv = document.getElementById('text-results');
+    let html = '';
+    
+    if (content.caption) {
+        html += `
+            <div class="result-box">
+                <div class="result-header">
+                    <h4><i class="fas fa-quote-left" style="color: var(--gold);"></i> Caption</h4>
+                    <button class="copy-btn" onclick="copyToClipboard(this, \`${content.caption}\`)">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+                <div class="result-content">${content.caption}</div>
+            </div>
+        `;
+    }
+    
+    if (content.hashtags) {
+        html += `
+            <div class="result-box">
+                <div class="result-header">
+                    <h4><i class="fas fa-hashtag" style="color: var(--gold);"></i> Hashtags</h4>
+                    <button class="copy-btn" onclick="copyToClipboard(this, \`${content.hashtags}\`)">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+                <div class="result-content">${content.hashtags}</div>
+            </div>
+        `;
+    }
+    
+    if (content.cta) {
+        html += `
+            <div class="result-box">
+                <div class="result-header">
+                    <h4><i class="fas fa-bullhorn" style="color: var(--gold);"></i> Call to Action</h4>
+                    <button class="copy-btn" onclick="copyToClipboard(this, \`${content.cta}\`)">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+                <div class="result-content">${content.cta}</div>
+            </div>
+        `;
+    }
+    
+    if (content.hooks) {
+        html += `
+            <div class="result-box">
+                <div class="result-header">
+                    <h4><i class="fas fa-magic" style="color: var(--gold);"></i> Hook Lines</h4>
+                    <button class="copy-btn" onclick="copyToClipboard(this, \`${content.hooks}\`)">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+                <div class="result-content">${content.hooks}</div>
+            </div>
+        `;
+    }
+    
+    resultsDiv.innerHTML = html;
+}
+
+async function generateImage() {
+    const productType = document.getElementById('image-product-type').value.trim();
+    const style = document.getElementById('image-style').value.trim();
+    const background = document.getElementById('image-background').value;
+    const format = document.getElementById('image-format').value;
+    
+    if (!productType || !style) {
+        alert('Please fill in product type and style');
+        return;
+    }
+    
+    const progressDiv = document.getElementById('generation-progress');
+    const progressText = document.getElementById('progress-text');
+    progressText.textContent = 'Generating your product image...';
+    progressDiv.style.display = 'flex';
+    
+    try {
+        const response = await fetch('/api/generate-product-image/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: JSON.stringify({
+                product_type: productType,
+                style: style,
+                background: background,
+                format: format
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            displayImageResults(data.image_url);
+        } else {
+            alert('Error: ' + (data.error || 'Failed to generate image'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred. Please try again.');
+    } finally {
+        progressDiv.style.display = 'none';
+    }
+}
+
+function displayImageResults(imageUrl) {
+    const resultsDiv = document.getElementById('image-results');
+    resultsDiv.innerHTML = `
+        <div class="generated-image-container">
+            <img src="${imageUrl}" alt="Generated product image">
+            <button class="download-btn" onclick="downloadImage('${imageUrl}')">
+                <i class="fas fa-download"></i> Download
+            </button>
+        </div>
+    `;
+}
+
+function copyToClipboard(button, text) {
+    navigator.clipboard.writeText(text).then(() => {
+        const originalHTML = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        button.style.background = '#10b981';
         setTimeout(() => {
-            btn.innerHTML = originalHTML;
-            btn.style.background = '';
+            button.innerHTML = originalHTML;
+            button.style.background = '';
         }, 2000);
     });
 }
 
-function downloadPoster() {
-    if (generatedPosterUrl) {
-        const link = document.createElement('a');
-        link.href = generatedPosterUrl;
-        link.download = 'adezy-poster-' + Date.now() + '.jpg';
-        link.click();
-    }
+function downloadImage(url) {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'adezy-product-' + Date.now() + '.jpg';
+    link.click();
 }
 </script>
+
+<style>
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+</style>
 {% endblock %}

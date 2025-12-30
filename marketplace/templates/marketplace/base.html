@@ -53,6 +53,196 @@
         </div>
     </div>
 
+    <!-- Balance Request Modal -->
+    <div id="balance-request-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 600px;">
+            <h2>Request Balance Top-Up</h2>
+            <p style="color: #64748b; margin-bottom: 20px;">Submit a request to add balance to your account. Admin will review and approve your request.</p>
+            
+            <form id="balance-request-form" onsubmit="submitBalanceRequest(event)">
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--deep-blue);">
+                        Amount (Taka)
+                    </label>
+                    <input 
+                        type="number" 
+                        id="balance-amount" 
+                        class="search-input" 
+                        placeholder="Enter amount"
+                        min="1"
+                        step="0.01"
+                        required
+                        style="width: 100%;"
+                    >
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--deep-blue);">
+                        Note/Reason (Optional)
+                    </label>
+                    <textarea 
+                        id="balance-note" 
+                        class="search-input" 
+                        placeholder="Why do you need this balance?"
+                        rows="3"
+                        style="width: 100%; resize: vertical;"
+                    ></textarea>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">
+                        Submit Request
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="closeBalanceRequestModal()" style="flex: 1;">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+
+            <div style="margin-top: 30px; border-top: 2px solid rgba(0,0,0,0.1); padding-top: 20px;">
+                <h3>Your Balance Requests</h3>
+                <div id="balance-requests-list" style="max-height: 300px; overflow-y: auto;">
+                    <div class="loading">Loading requests...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cashout Request Modal -->
+    <div id="cashout-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 600px;">
+            <h2>Request Earnings Cashout</h2>
+            <p style="color: #64748b; margin-bottom: 15px;">Withdraw your earnings from completed orders. This will NOT affect your buying balance.</p>
+            
+            <div style="background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="color: #64748b;">Total Earnings (From Sales):</span>
+                    <strong id="total-earnings-display" style="color: var(--deep-blue);">0.00 Taka</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="color: #64748b;">Already Cashed Out:</span>
+                    <strong id="cashed-out-display" style="color: #ef4444;">0.00 Taka</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 2px solid #cbd5e1;">
+                    <span style="color: #64748b; font-weight: 600;">Available to Cashout:</span>
+                    <strong id="available-earnings-display" style="color: var(--gold); font-size: 1.1rem;">0.00 Taka</strong>
+                </div>
+            </div>
+            
+            <form id="cashout-form" onsubmit="submitCashoutRequest(event)">
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--deep-blue);">
+                        Amount (Taka) <span style="color: red;">*</span>
+                    </label>
+                    <input 
+                        type="number" 
+                        id="cashout-amount" 
+                        class="search-input" 
+                        placeholder="Enter amount"
+                        min="1"
+                        step="0.01"
+                        required
+                        style="width: 100%;"
+                    >
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--deep-blue);">
+                        Payment Method <span style="color: red;">*</span>
+                    </label>
+                    <select 
+                        id="payment-method" 
+                        class="search-input" 
+                        required
+                        style="width: 100%;"
+                    >
+                        <option value="">Select payment method</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="bKash">bKash</option>
+                        <option value="Nagad">Nagad</option>
+                        <option value="Rocket">Rocket</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--deep-blue);">
+                        Payment Details <span style="color: red;">*</span>
+                    </label>
+                    <textarea 
+                        id="payment-details" 
+                        class="search-input" 
+                        placeholder="Enter account number, bank name, or mobile wallet number"
+                        rows="3"
+                        required
+                        style="width: 100%; resize: vertical;"
+                    ></textarea>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--deep-blue);">
+                        Note (Optional)
+                    </label>
+                    <textarea 
+                        id="cashout-note" 
+                        class="search-input" 
+                        placeholder="Any additional information"
+                        rows="2"
+                        style="width: 100%; resize: vertical;"
+                    ></textarea>
+                </div>
+
+                <div style="display: flex; gap: 10px;">
+                    <button type="submit" class="btn btn-primary" style="flex: 1;">
+                        Submit Cashout Request
+                    </button>
+                    <button type="button" class="btn btn-secondary" onclick="closeCashoutModal()" style="flex: 1;">
+                        Cancel
+                    </button>
+                </div>
+            </form>
+
+            <div style="margin-top: 30px; border-top: 2px solid rgba(0,0,0,0.1); padding-top: 20px;">
+                <h3>Your Cashout Requests</h3>
+                <div id="cashout-requests-list" style="max-height: 300px; overflow-y: auto;">
+                    <div class="loading">Loading requests...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cashout History Modal -->
+    <div id="cashout-history-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 800px;">
+            <h2>Cashout History</h2>
+            <p style="color: #64748b; margin-bottom: 20px;">View all your approved cashout transactions</p>
+            
+            <div style="background: #f1f5f9; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="color: #64748b;">Total Earnings:</span>
+                    <strong id="history-total-earnings" style="color: var(--deep-blue);">0.00 Taka</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                    <span style="color: #64748b;">Total Cashed Out:</span>
+                    <strong id="history-cashed-out" style="color: #ef4444;">0.00 Taka</strong>
+                </div>
+                <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 2px solid #cbd5e1;">
+                    <span style="color: #64748b; font-weight: 600;">Available to Cashout:</span>
+                    <strong id="history-available" style="color: var(--gold); font-size: 1.1rem;">0.00 Taka</strong>
+                </div>
+            </div>
+
+            <h3>Approved Cashouts</h3>
+            <div id="cashout-history-list" style="max-height: 400px; overflow-y: auto;">
+                <div class="loading">Loading history...</div>
+            </div>
+
+            <button class="btn btn-secondary" onclick="closeCashoutHistoryModal()" style="margin-top: 20px;">Close</button>
+        </div>
+    </div>
+
+    {% include 'marketplace/footer.html' %}
+
     <!-- JavaScript -->
     <script src="/static/js/main.js"></script>
     {% block extra_js %}{% endblock %}

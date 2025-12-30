@@ -16,6 +16,14 @@
         <div id="gig-detail-container">
             <div class="loading">Loading gig details...</div>
         </div>
+        
+        <!-- Suggested Gigs Section -->
+        <div id="suggested-gigs-container" style="margin-top: 60px; margin-bottom: 60px;">
+            <h2 class="section-title" style="text-align: center; margin-bottom: 30px;">More Gigs You May Like</h2>
+            <div id="suggested-gigs-grid" class="gigs-grid">
+                <div class="loading">Loading suggestions...</div>
+            </div>
+        </div>
     </div>
 
     <!-- Order Modal -->
@@ -55,6 +63,7 @@
         document.addEventListener('DOMContentLoaded', () => {
             const gigId = window.location.pathname.split('/').filter(p => p)[1];
             loadGigDetail(gigId);
+            loadSuggestedGigs(gigId);
         });
 
         async function loadGigDetail(gigId) {
@@ -71,32 +80,57 @@
                 
                 container.innerHTML = `
                     <div class="gig-detail-layout">
+                        <!-- Left Side: Image and About -->
                         <div class="gig-detail-main">
                             <div class="gig-detail-image-container">
                                 <img src="${gig.image_url}" alt="${gig.title}" class="gig-detail-image">
                             </div>
-                            <div class="gig-detail-content">
-                                <h1 class="gig-detail-title">${gig.title}</h1>
-                                <div class="gig-detail-meta">
-                                    <span class="gig-detail-category">
-                                        <i class="fas fa-tag"></i> ${gig.category}
-                                    </span>
-                                    <span class="gig-detail-delivery">
-                                        <i class="fas fa-clock"></i> ${gig.delivery_time} days delivery
-                                    </span>
+                            
+                            <div class="gig-detail-section">
+                                <h2 class="section-title">About This Gig</h2>
+                                <div class="gig-description-text">
+                                    ${gig.description}
                                 </div>
-                                <div class="gig-detail-description">
-                                    <h3>About This Gig</h3>
-                                    <p>${gig.description}</p>
+                            </div>
+                            
+                            <div class="gig-detail-section">
+                                <h3 class="section-subtitle">What You'll Get</h3>
+                                <ul class="gig-features-list">
+                                    <li><i class="fas fa-check-circle"></i> Professional service delivery</li>
+                                    <li><i class="fas fa-check-circle"></i> ${gig.delivery_time} days turnaround time</li>
+                                    <li><i class="fas fa-check-circle"></i> Quality guaranteed work</li>
+                                    <li><i class="fas fa-check-circle"></i> Responsive communication</li>
+                                </ul>
+                            </div>
+                            
+                            <div class="gig-detail-section">
+                                <h3 class="section-subtitle">About The Seller</h3>
+                                <div class="seller-info-box">
+                                    <div class="seller-avatar-large">
+                                        ${gig.seller_name.charAt(0).toUpperCase()}
+                                    </div>
+                                    <div class="seller-details">
+                                        <h4>${gig.seller_name}</h4>
+                                        <p class="seller-bio">Professional freelancer specializing in ${gig.category}</p>
+                                        ${gig.rating && gig.rating > 0 ? `
+                                            <div class="seller-rating">
+                                                <span class="rating-stars">⭐ ${gig.rating.toFixed(1)}</span>
+                                                <span class="rating-text">(${gig.total_reviews || 0} reviews)</span>
+                                            </div>
+                                        ` : ''}
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                        
+                        <!-- Right Side: Order Card (Sticky) -->
                         <div class="gig-detail-sidebar">
-                            <div class="gig-order-card glass-panel">
-                                <div class="gig-price">
+                            <div class="gig-order-card glass-panel sticky-sidebar">
+                                <div class="gig-price-section">
                                     <span class="gig-price-label">Price</span>
                                     <span class="gig-price-amount">${gig.price} Taka</span>
                                 </div>
+                                
                                 <div class="gig-seller-info">
                                     <div class="gig-seller-avatar">
                                         ${gig.seller_name.charAt(0).toUpperCase()}
@@ -106,19 +140,40 @@
                                         <div class="gig-seller-name">${gig.seller_name}</div>
                                     </div>
                                 </div>
+                                
+                                ${gig.rating && gig.rating > 0 ? `
+                                    <div class="gig-rating-box">
+                                        <span class="rating-stars">⭐ ${gig.rating.toFixed(1)}</span>
+                                        <span class="rating-reviews">(${gig.total_reviews || 0} reviews)</span>
+                                    </div>
+                                ` : ''}
+                                
+                                <div class="gig-info-list">
+                                    <div class="gig-info-item">
+                                        <i class="fas fa-clock"></i>
+                                        <span>${gig.delivery_time} Days Delivery</span>
+                                    </div>
+                                    <div class="gig-info-item">
+                                        <i class="fas fa-tag"></i>
+                                        <span>${gig.category}</span>
+                                    </div>
+                                    ${gig.total_orders ? `
+                                        <div class="gig-info-item">
+                                            <i class="fas fa-shopping-cart"></i>
+                                            <span>${gig.total_orders} Orders Completed</span>
+                                        </div>
+                                    ` : ''}
+                                </div>
+                                
                                 {% if user.is_authenticated %}
-                                    <button class="btn btn-primary btn-block" onclick="handleOrder(${gig.id})">
+                                    <button class="btn btn-primary btn-block btn-large" onclick="handleOrder(${gig.id})">
                                         <i class="fas fa-shopping-cart"></i> Order Now
                                     </button>
                                 {% else %}
-                                    <a href="/login/" class="btn btn-primary btn-block">
+                                    <a href="/login/" class="btn btn-primary btn-block btn-large">
                                         <i class="fas fa-sign-in-alt"></i> Login to Order
                                     </a>
                                 {% endif %}
-                                <div class="gig-delivery-info">
-                                    <i class="fas fa-shipping-fast"></i>
-                                    <span>Delivery in ${gig.delivery_time} days</span>
-                                </div>
                             </div>
                         </div>
                     </div>
@@ -136,6 +191,56 @@
                 `;
             }
         }
+        
+        async function loadSuggestedGigs(currentGigId) {
+            const container = document.getElementById('suggested-gigs-container');
+            if (!container) return;
+            
+            try {
+                const response = await fetch('/api/gigs/');
+                if (!response.ok) throw new Error('Failed to fetch gigs');
+                
+                const data = await response.json();
+                const suggestedGigs = data.gigs.filter(g => g.id != currentGigId).slice(0, 4);
+                
+                if (suggestedGigs.length === 0) {
+                    container.style.display = 'none';
+                    return;
+                }
+                
+                let gigsHTML = '';
+                suggestedGigs.forEach(gig => {
+                    gigsHTML += `
+                        <div class="gig-card" onclick="window.location.href='/gig/${gig.id}/'">
+                            <img src="${gig.image_url}" alt="${gig.title}" class="gig-card-image">
+                            <div class="gig-card-content">
+                                <h3 class="gig-card-title">${gig.title}</h3>
+                                <p class="gig-card-seller">by ${gig.seller_name}</p>
+                                ${gig.rating && gig.rating > 0 ? `
+                                    <div class="gig-card-rating">
+                                        <span class="rating-stars">⭐ ${gig.rating.toFixed(1)}</span>
+                                        <span class="rating-reviews">(${gig.total_reviews})</span>
+                                    </div>
+                                ` : ''}
+                                <span class="gig-card-category">${gig.category}</span>
+                            </div>
+                            <div class="gig-card-footer">
+                                <div class="gig-card-price">${gig.price} Taka</div>
+                                <button class="btn-order" onclick="event.stopPropagation(); window.location.href='/gig/${gig.id}/'">View Details</button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                document.getElementById('suggested-gigs-grid').innerHTML = gigsHTML;
+                
+            } catch (error) {
+                console.error('Error loading suggested gigs:', error);
+                container.style.display = 'none';
+            }
+        }
     </script>
+    
+    {% include 'marketplace/footer.html' %}
 </body>
 </html>

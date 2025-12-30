@@ -5,6 +5,16 @@
 // Global variables
 let allGigs = [];
 let currentUser = null;
+let lastScrollY = window.scrollY;
+let displayedGigsCount = 0;
+const GIGS_PER_PAGE = 15;
+
+// ========================================
+// Show More Gigs Function
+// ========================================
+function showMoreGigs() {
+    renderGigs(allGigs, true);
+}
 
 // ========================================
 // Initialize App on Page Load
@@ -13,9 +23,14 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('AdEzy initialized');
     
     // Load initial data
-    loadGigs();
+    loadGigsForSearch(); // Always load gigs for search functionality
     loadUserBalance();
     loadSellerEarnings();
+    
+    // Auto-refresh balance every 10 seconds to catch admin approvals
+    setInterval(() => {
+        loadUserBalance();
+    }, 10000); // 10 seconds
     
     // Load seller's gigs if on dashboard
     if (document.getElementById('my-gigs-container')) {
@@ -35,17 +50,107 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set up event listeners
     setupSearchListener();
     setupDashboardTabs();
+    setupScrollBehavior();
     
     // Check if on dashboard page
     if (document.querySelector('#buyer-section')) {
         loadBuyerOrders();
         loadSellerOrders();
     }
+    
+    // Handle anchor scroll on page load
+    if (window.location.hash) {
+        setTimeout(() => {
+            const element = document.querySelector(window.location.hash);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }, 500);
+    }
 });
+
+// Setup scroll behavior for sticky navbar
+function setupScrollBehavior() {
+    let scrollTimeout;
+    
+    window.addEventListener('scroll', () => {
+        const currentScrollY = window.scrollY;
+        
+        // Add/remove class based on scroll direction
+        if (currentScrollY > 100) {
+            if (currentScrollY > lastScrollY) {
+                // Scrolling down
+                document.body.classList.add('scrolled-down');
+            } else {
+                // Scrolling up
+                document.body.classList.remove('scrolled-down');
+            }
+        } else {
+            // Near top
+            document.body.classList.remove('scrolled-down');
+        }
+        
+        lastScrollY = currentScrollY;
+    });
+}
+
+// Filter by category and scroll to popular services
+function filterByCategory(categoryName) {
+    // Update URL with category parameter
+    window.location.href = `/?category=${encodeURIComponent(categoryName)}#popular-services`;
+}
+
+// Make filterByCategory available globally
+window.filterByCategory = filterByCategory;
+
 
 // ========================================
 // Dynamic Gig Rendering (DOM Manipulation)
 // ========================================
+// Load gigs for search (works on all pages)
+async function loadGigsForSearch() {
+    try {
+        // Check for URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const category = urlParams.get('category');
+        const filter = urlParams.get('filter');
+        
+        // Build API URL with parameters
+        let apiUrl = '/api/gigs/';
+        const params = [];
+        if (category) params.push(`category=${encodeURIComponent(category)}`);
+        if (filter) params.push(`filter=${encodeURIComponent(filter)}`);
+        if (params.length > 0) {
+            apiUrl += '?' + params.join('&');
+        }
+        
+        // Reset pagination
+        displayedGigsCount = 0;
+        
+        // Fetch gigs from Django backend
+        const response = await fetch(apiUrl);
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch gigs');
+        }
+        
+        const data = await response.json();
+        allGigs = data.gigs;
+        console.log(`Loaded ${allGigs.length} gigs for search`);
+        
+        // If we're on home page, render the gigs
+        const container = document.querySelector('#gig-container');
+        if (container) {
+            renderGigs(allGigs);
+            // Update search results info if category/filter is active
+            updateFilterInfo(category, filter, allGigs.length);
+        }
+    } catch (error) {
+        console.error('Error loading gigs for search:', error);
+        allGigs = [];
+    }
+}
+
 async function loadGigs() {
     const container = document.querySelector('#gig-container');
     
@@ -79,18 +184,20 @@ async function loadGigs() {
     }
 }
 
-function renderGigs(gigs) {
+function renderGigs(gigs, append = false) {
     const container = document.querySelector('#gig-container');
     const searchResultsInfo = document.getElementById('search-results-info');
     const searchResultsText = document.getElementById('search-results-text');
     const searchInput = document.querySelector('#search-input');
+    const showMoreContainer = document.getElementById('show-more-container');
+    const gigsCountInfo = document.getElementById('gigs-count-info');
     
     if (!container) {
         console.log('Gig container not found on this page');
         return;
     }
     
-    console.log(`Rendering ${gigs.length} gigs`);
+    console.log(`Rendering ${gigs.length} gigs (append: ${append})`);
     
     // Show/hide search results info
     if (searchResultsInfo && searchInput && searchInput.value.trim() !== '') {
@@ -103,8 +210,11 @@ function renderGigs(gigs) {
         searchResultsInfo.style.display = 'none';
     }
     
-    // Clear container
-    container.innerHTML = '';
+    // Clear container if not appending
+    if (!append) {
+        container.innerHTML = '';
+        displayedGigsCount = 0;
+    }
     
     // Check if empty
     if (gigs.length === 0) {
@@ -115,11 +225,17 @@ function renderGigs(gigs) {
                 <p>${searchTerm ? `No results for "${searchTerm}". Try different keywords.` : 'Check back later for new services.'}</p>
             </div>
         `;
+        if (showMoreContainer) showMoreContainer.style.display = 'none';
         return;
     }
     
+    // Determine how many gigs to show
+    const startIndex = append ? displayedGigsCount : 0;
+    const endIndex = Math.min(startIndex + GIGS_PER_PAGE, gigs.length);
+    const gigsToShow = gigs.slice(startIndex, endIndex);
+    
     // Create gig cards dynamically
-    gigs.forEach((gig, index) => {
+    gigsToShow.forEach((gig, index) => {
         // Create card container
         const card = document.createElement('div');
         card.className = 'gig-card';
@@ -145,6 +261,17 @@ function renderGigs(gigs) {
         const seller = document.createElement('p');
         seller.className = 'gig-card-seller';
         seller.textContent = `by ${gig.seller_name}`;
+        
+        // Create rating display (if rating exists)
+        if (gig.rating && gig.rating > 0) {
+            const ratingDiv = document.createElement('div');
+            ratingDiv.className = 'gig-card-rating';
+            ratingDiv.innerHTML = `
+                <span class="rating-stars">⭐ ${gig.rating.toFixed(1)}</span>
+                <span class="rating-reviews">(${gig.total_reviews} reviews)</span>
+            `;
+            content.appendChild(ratingDiv);
+        }
         
         // Create category badge
         const category = document.createElement('span');
@@ -192,6 +319,21 @@ function renderGigs(gigs) {
         // Add to container
         container.appendChild(card);
     });
+    
+    // Update displayed count
+    displayedGigsCount = endIndex;
+    
+    // Show/hide "Show More" button
+    if (showMoreContainer) {
+        if (displayedGigsCount < gigs.length) {
+            showMoreContainer.style.display = 'block';
+            if (gigsCountInfo) {
+                gigsCountInfo.textContent = `Showing ${displayedGigsCount} of ${gigs.length} gigs`;
+            }
+        } else {
+            showMoreContainer.style.display = 'none';
+        }
+    }
 }
 
 // ========================================
@@ -264,12 +406,15 @@ function setupSearchListener() {
     
     // Function to perform full search
     const performSearch = () => {
-        const searchTerm = searchInput.value.toLowerCase().trim();
+        const searchTerm = searchInput.value.trim();
         
         // Hide suggestions
         if (suggestionsContainer) {
             suggestionsContainer.style.display = 'none';
         }
+        
+        // Reset pagination
+        displayedGigsCount = 0;
         
         // Check if we're on the home page
         const container = document.querySelector('#gig-container');
@@ -291,16 +436,17 @@ function setupSearchListener() {
         }
         
         // Filter gigs based on search term (title, description, category, seller)
+        const searchTermLower = searchTerm.toLowerCase();
         const filteredGigs = allGigs.filter(gig => {
             const title = (gig.title || '').toLowerCase();
             const description = (gig.description || '').toLowerCase();
             const category = (gig.category || '').toLowerCase();
             const seller = (gig.seller_name || '').toLowerCase();
             
-            return title.includes(searchTerm) ||
-                   description.includes(searchTerm) ||
-                   category.includes(searchTerm) ||
-                   seller.includes(searchTerm);
+            return title.includes(searchTermLower) ||
+                   description.includes(searchTermLower) ||
+                   category.includes(searchTermLower) ||
+                   seller.includes(searchTermLower);
         });
         
         // Re-render with filtered results
@@ -315,10 +461,27 @@ function setupSearchListener() {
     // Show suggestions on input
     searchInput.addEventListener('input', () => {
         showSuggestions();
-        // Also perform search if on home page
+        // Also perform live filtering if on home page
         const container = document.querySelector('#gig-container');
         if (container) {
-            performSearch();
+            const searchTerm = searchInput.value.trim();
+            if (searchTerm === '') {
+                renderGigs(allGigs);
+            } else {
+                const searchTermLower = searchTerm.toLowerCase();
+                const filteredGigs = allGigs.filter(gig => {
+                    const title = (gig.title || '').toLowerCase();
+                    const description = (gig.description || '').toLowerCase();
+                    const category = (gig.category || '').toLowerCase();
+                    const seller = (gig.seller_name || '').toLowerCase();
+                    
+                    return title.includes(searchTermLower) ||
+                           description.includes(searchTermLower) ||
+                           category.includes(searchTermLower) ||
+                           seller.includes(searchTermLower);
+                });
+                renderGigs(filteredGigs);
+            }
         }
     });
     
@@ -459,10 +622,6 @@ function closeModal() {
 // User Balance Management
 // ========================================
 async function loadUserBalance() {
-    const balanceElement = document.querySelector('#user-balance');
-    
-    if (!balanceElement) return;
-    
     try {
         const response = await fetch('/api/user/balance/');
         
@@ -479,6 +638,8 @@ function updateBalanceDisplay(balance) {
     const balanceElement = document.querySelector('#user-balance');
     const balanceDropdown = document.querySelector('#user-balance-dropdown');
     
+    console.log('Updating balance display:', balance);
+    
     if (balanceElement) {
         balanceElement.textContent = balance.toFixed(2);
         
@@ -494,6 +655,9 @@ function updateBalanceDisplay(balance) {
     // Update balance in profile dropdown
     if (balanceDropdown) {
         balanceDropdown.textContent = balance.toFixed(2);
+        console.log('Dropdown balance updated to:', balance.toFixed(2));
+    } else {
+        console.warn('Balance dropdown element not found');
     }
 }
 
@@ -528,6 +692,82 @@ function setupDashboardTabs() {
             }
         });
     });
+    
+    // Setup filter tabs on home page
+    const filterButtons = document.querySelectorAll('.tab-filter');
+    if (filterButtons.length > 0) {
+        filterButtons.forEach(button => {
+            button.addEventListener('click', async () => {
+                const filter = button.getAttribute('data-filter');
+                
+                // Remove active class from all buttons
+                filterButtons.forEach(btn => btn.classList.remove('active'));
+                
+                // Add active class to clicked button
+                button.classList.add('active');
+                
+                // Load gigs with filter
+                await loadGigsWithFilter(filter);
+            });
+        });
+    }
+}
+
+// Helper function to update filter info display
+function updateFilterInfo(category, filter, count) {
+    const searchResultsInfo = document.getElementById('search-results-info');
+    const searchResultsText = document.getElementById('search-results-text');
+    
+    if (!searchResultsInfo || !searchResultsText) return;
+    
+    let message = '';
+    if (category) {
+        message = `Showing ${count} gig${count !== 1 ? 's' : ''} in "${category}"`;
+    } else if (filter === 'top-rated') {
+        message = `Showing ${count} top-rated gig${count !== 1 ? 's' : ''}`;
+    } else if (filter === 'new') {
+        message = `Showing ${count} new gig${count !== 1 ? 's' : ''}`;
+    }
+    
+    if (message) {
+        searchResultsText.textContent = message;
+        searchResultsInfo.style.display = 'block';
+    } else {
+        searchResultsInfo.style.display = 'none';
+    }
+}
+
+// Load gigs with filter
+async function loadGigsWithFilter(filter) {
+    const container = document.querySelector('#gig-container');
+    if (!container) return;
+    
+    container.innerHTML = '<div class="loading">Loading gigs...</div>';
+    
+    // Reset pagination
+    displayedGigsCount = 0;
+    
+    try {
+        const apiUrl = filter === 'all' ? '/api/gigs/' : `/api/gigs/?filter=${filter}`;
+        const response = await fetch(apiUrl);
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch gigs');
+        }
+        
+        const data = await response.json();
+        allGigs = data.gigs;
+        renderGigs(allGigs);
+        updateFilterInfo(null, filter !== 'all' ? filter : null, allGigs.length);
+    } catch (error) {
+        console.error('Error loading gigs:', error);
+        container.innerHTML = `
+            <div class="empty-state">
+                <h3>⚠️ Error Loading Gigs</h3>
+                <p>Please try again later.</p>
+            </div>
+        `;
+    }
 }
 
 // ========================================
@@ -1105,3 +1345,336 @@ function clearSearch() {
 }
 window.clearSearch = clearSearch;
 window.selectGig = selectGig;
+
+
+// ========================================
+// Balance Request Functions
+// ========================================
+async function showBalanceRequestModal(event) {
+    if (event) event.preventDefault();
+    
+    const modal = document.getElementById('balance-request-modal');
+    modal.classList.remove('hidden');
+    
+    // Reset form
+    document.getElementById('balance-request-form').reset();
+    
+    // Reload current balance
+    await loadUserBalance();
+    
+    // Load existing requests
+    await loadBalanceRequests();
+}
+
+function closeBalanceRequestModal() {
+    const modal = document.getElementById('balance-request-modal');
+    modal.classList.add('hidden');
+}
+
+async function submitBalanceRequest(event) {
+    event.preventDefault();
+    
+    const amount = document.getElementById('balance-amount').value;
+    const note = document.getElementById('balance-note').value;
+    
+    try {
+        const response = await fetch('/api/balance-request/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                amount: parseFloat(amount),
+                note: note
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert('Balance request submitted successfully! Admin will review your request.');
+            document.getElementById('balance-request-form').reset();
+            await loadBalanceRequests();
+            await loadUserBalance();
+        } else {
+            alert('Error: ' + (data.error || 'Failed to submit request'));
+        }
+    } catch (error) {
+        console.error('Error submitting balance request:', error);
+        alert('Failed to submit balance request. Please try again.');
+    }
+}
+
+async function loadBalanceRequests() {
+    const container = document.getElementById('balance-requests-list');
+    
+    try {
+        const response = await fetch('/api/balance-requests/');
+        const data = await response.json();
+        
+        // Reload balance to show any updates from approved requests
+        await loadUserBalance();
+        
+        if (data.requests.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #94a3b8; padding: 20px;">No balance requests yet</p>';
+            return;
+        }
+        
+        container.innerHTML = data.requests.map(req => {
+            const statusColor = req.status === 'approved' ? '#10b981' : 
+                              req.status === 'rejected' ? '#ef4444' : '#f59e0b';
+            const statusIcon = req.status === 'approved' ? '✓' : 
+                             req.status === 'rejected' ? '✗' : '⏳';
+            
+            return `
+                <div style="padding: 15px; margin-bottom: 10px; background: #f8fafc; border-radius: 8px; border-left: 4px solid ${statusColor};">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="font-weight: 600; color: var(--deep-blue);">
+                            ${req.amount} Taka
+                        </div>
+                        <div style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">
+                            ${statusIcon} ${req.status.toUpperCase()}
+                        </div>
+                    </div>
+                    ${req.note ? `<div style="color: #64748b; font-size: 0.9rem; margin-bottom: 8px;">${req.note}</div>` : ''}
+                    ${req.admin_note ? `<div style="color: #64748b; font-size: 0.85rem; font-style: italic; margin-bottom: 8px;">Admin: ${req.admin_note}</div>` : ''}
+                    <div style="color: #94a3b8; font-size: 0.85rem;">
+                        ${req.created_at}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+    } catch (error) {
+        console.error('Error loading balance requests:', error);
+        container.innerHTML = '<p style="text-align: center; color: #ef4444;">Failed to load requests</p>';
+    }
+}
+
+// Expose functions to window
+window.showBalanceRequestModal = showBalanceRequestModal;
+window.closeBalanceRequestModal = closeBalanceRequestModal;
+window.submitBalanceRequest = submitBalanceRequest;
+window.loadBalanceRequests = loadBalanceRequests;
+
+
+// ========================================
+// Cashout Request Functions
+// ========================================
+async function showCashoutModal(event) {
+    if (event) event.preventDefault();
+    
+    const modal = document.getElementById('cashout-modal');
+    modal.classList.remove('hidden');
+    
+    // Reset form
+    document.getElementById('cashout-form').reset();
+    
+    // Load available earnings
+    await loadAvailableEarnings();
+    
+    // Load existing requests
+    await loadCashoutRequests();
+}
+
+function closeCashoutModal() {
+    const modal = document.getElementById('cashout-modal');
+    modal.classList.add('hidden');
+}
+
+async function loadAvailableEarnings() {
+    try {
+        const response = await fetch('/api/available-earnings/');
+        const data = await response.json();
+        
+        document.getElementById('total-earnings-display').textContent = data.total_earnings.toFixed(2) + ' Taka';
+        document.getElementById('cashed-out-display').textContent = data.total_cashed_out.toFixed(2) + ' Taka';
+        document.getElementById('available-earnings-display').textContent = data.available_earnings.toFixed(2) + ' Taka';
+        
+        // Update max attribute on amount input
+        const amountInput = document.getElementById('cashout-amount');
+        amountInput.max = data.available_earnings;
+        
+    } catch (error) {
+        console.error('Error loading available earnings:', error);
+    }
+}
+
+async function submitCashoutRequest(event) {
+    event.preventDefault();
+    
+    const amount = parseFloat(document.getElementById('cashout-amount').value);
+    const paymentMethod = document.getElementById('payment-method').value;
+    const paymentDetails = document.getElementById('payment-details').value;
+    const note = document.getElementById('cashout-note').value;
+    
+    try {
+        const response = await fetch('/api/cashout-request/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({
+                amount: amount,
+                payment_method: paymentMethod,
+                payment_details: paymentDetails,
+                note: note
+            })
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+            alert('Cashout request submitted successfully! Admin will process your payment.');
+            document.getElementById('cashout-form').reset();
+            await loadAvailableEarnings();
+            await loadCashoutRequests();
+            await loadSellerEarnings(); // Refresh earnings display
+        } else {
+            alert('Error: ' + (data.error || 'Failed to submit request'));
+        }
+    } catch (error) {
+        console.error('Error submitting cashout request:', error);
+        alert('Failed to submit cashout request. Please try again.');
+    }
+}
+
+async function loadCashoutRequests() {
+    const container = document.getElementById('cashout-requests-list');
+    
+    try {
+        const response = await fetch('/api/cashout-requests/');
+        const data = await response.json();
+        
+        if (data.requests.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #94a3b8; padding: 20px;">No cashout requests yet</p>';
+            return;
+        }
+        
+        container.innerHTML = data.requests.map(req => {
+            const statusColor = req.status === 'approved' ? '#10b981' : 
+                              req.status === 'rejected' ? '#ef4444' : '#f59e0b';
+            const statusIcon = req.status === 'approved' ? '✓' : 
+                             req.status === 'rejected' ? '✗' : '⏳';
+            
+            return `
+                <div style="padding: 15px; margin-bottom: 10px; background: #f8fafc; border-radius: 8px; border-left: 4px solid ${statusColor};">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="font-weight: 600; color: var(--deep-blue);">
+                            ${req.amount} Taka via ${req.payment_method}
+                        </div>
+                        <div style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">
+                            ${statusIcon} ${req.status.toUpperCase()}
+                        </div>
+                    </div>
+                    <div style="color: #64748b; font-size: 0.9rem; margin-bottom: 4px;">
+                        ${req.payment_details}
+                    </div>
+                    ${req.note ? `<div style="color: #64748b; font-size: 0.9rem; margin-bottom: 8px;">Note: ${req.note}</div>` : ''}
+                    ${req.admin_note ? `<div style="color: #64748b; font-size: 0.85rem; font-style: italic; margin-bottom: 8px;">Admin: ${req.admin_note}</div>` : ''}
+                    <div style="color: #94a3b8; font-size: 0.85rem;">
+                        ${req.created_at}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+    } catch (error) {
+        console.error('Error loading cashout requests:', error);
+        container.innerHTML = '<p style="text-align: center; color: #ef4444;">Failed to load requests</p>';
+    }
+}
+
+// Expose functions to window
+window.showCashoutModal = showCashoutModal;
+window.closeCashoutModal = closeCashoutModal;
+window.submitCashoutRequest = submitCashoutRequest;
+window.loadCashoutRequests = loadCashoutRequests;
+window.loadAvailableEarnings = loadAvailableEarnings;
+
+
+// ========================================
+// Cashout History Functions
+// ========================================
+async function showCashoutHistoryModal(event) {
+    if (event) event.preventDefault();
+    
+    const modal = document.getElementById('cashout-history-modal');
+    modal.classList.remove('hidden');
+    
+    // Load earnings summary and history
+    await loadCashoutHistory();
+}
+
+function closeCashoutHistoryModal() {
+    const modal = document.getElementById('cashout-history-modal');
+    modal.classList.add('hidden');
+}
+
+async function loadCashoutHistory() {
+    try {
+        // Load earnings summary
+        const earningsResponse = await fetch('/api/available-earnings/');
+        const earningsData = await earningsResponse.json();
+        
+        document.getElementById('history-total-earnings').textContent = earningsData.total_earnings.toFixed(2) + ' Taka';
+        document.getElementById('history-cashed-out').textContent = earningsData.total_cashed_out.toFixed(2) + ' Taka';
+        document.getElementById('history-available').textContent = earningsData.available_earnings.toFixed(2) + ' Taka';
+        
+        // Load approved cashout history
+        const historyResponse = await fetch('/api/cashout-requests/');
+        const historyData = await historyResponse.json();
+        
+        const container = document.getElementById('cashout-history-list');
+        
+        // Filter only approved requests
+        const approvedRequests = historyData.requests.filter(req => req.status === 'approved');
+        
+        if (approvedRequests.length === 0) {
+            container.innerHTML = '<p style="text-align: center; color: #94a3b8; padding: 20px;">No cashout history yet</p>';
+            return;
+        }
+        
+        container.innerHTML = approvedRequests.map(req => {
+            return `
+                <div style="padding: 15px; margin-bottom: 10px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                        <div style="font-weight: 600; color: var(--deep-blue); font-size: 1.1rem;">
+                            ${req.amount} Taka
+                        </div>
+                        <div style="background: #10b981; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">
+                            ✓ PAID
+                        </div>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
+                        <div>
+                            <div style="color: #64748b; font-size: 0.85rem;">Payment Method</div>
+                            <div style="color: var(--deep-blue); font-weight: 600;">${req.payment_method}</div>
+                        </div>
+                        <div>
+                            <div style="color: #64748b; font-size: 0.85rem;">Account</div>
+                            <div style="color: var(--deep-blue); font-weight: 600;">${req.payment_details}</div>
+                        </div>
+                    </div>
+                    ${req.admin_note ? `<div style="color: #059669; font-size: 0.9rem; background: white; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                        <strong>Admin:</strong> ${req.admin_note}
+                    </div>` : ''}
+                    <div style="color: #94a3b8; font-size: 0.85rem;">
+                        Processed on ${req.updated_at}
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+    } catch (error) {
+        console.error('Error loading cashout history:', error);
+        document.getElementById('cashout-history-list').innerHTML = '<p style="text-align: center; color: #ef4444;">Failed to load history</p>';
+    }
+}
+
+// Expose functions to window
+window.showCashoutHistoryModal = showCashoutHistoryModal;
+window.closeCashoutHistoryModal = closeCashoutHistoryModal;
+window.loadCashoutHistory = loadCashoutHistory;

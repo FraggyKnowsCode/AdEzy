@@ -2,8 +2,7 @@
 Custom admin site with separate session handling
 """
 from django.contrib import admin
-from django.contrib.auth import authenticate, BACKEND_SESSION_KEY, HASH_SESSION_KEY, SESSION_KEY
-from django.contrib.auth.views import redirect_to_login
+from django.contrib.auth import authenticate, login as auth_login
 from django.shortcuts import redirect
 from django.urls import reverse
 
@@ -23,6 +22,7 @@ class SeparateSessionAdminSite(admin.AdminSite):
             from django.contrib.auth.models import User
             try:
                 user = User.objects.get(pk=admin_user_id)
+                request.user = user  # Attach user to request
                 return user.is_active and user.is_staff
             except User.DoesNotExist:
                 pass
@@ -40,6 +40,7 @@ class SeparateSessionAdminSite(admin.AdminSite):
                 # Store admin user ID in separate session key
                 request.session['_admin_user_id'] = user.pk
                 request.session['_admin_backend'] = 'django.contrib.auth.backends.ModelBackend'
+                request.session.modified = True  # Force session save
                 
                 # Get the redirect URL
                 redirect_url = request.GET.get('next', reverse('admin:index'))
@@ -57,6 +58,22 @@ class SeparateSessionAdminSite(admin.AdminSite):
         
         # Redirect to admin login
         return redirect(reverse('admin:login'))
+    
+    def each_context(self, request):
+        """Get admin context for each request"""
+        context = super().each_context(request)
+        
+        # Attach user from admin session
+        admin_user_id = request.session.get('_admin_user_id')
+        if admin_user_id:
+            from django.contrib.auth.models import User
+            try:
+                user = User.objects.get(pk=admin_user_id)
+                context['user'] = user
+            except User.DoesNotExist:
+                pass
+        
+        return context
 
 
 # Create custom admin site instance

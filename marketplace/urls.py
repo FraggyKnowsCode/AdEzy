@@ -34,4 +34,11 @@ urlpatterns = [
     path('api/categories/', views.get_categories_json, name='api-categories'),
     path('api/seller/earnings/', views.get_seller_earnings_json, name='api-seller-earnings'),
     path('api/generate-poster/', views.generate_poster_api, name='api-generate-poster'),
+    path('api/balance-request/', views.request_balance, name='api-request-balance'),
+    path('api/balance-requests/', views.get_balance_requests, name='api-balance-requests'),
+    path('api/cashout-request/', views.request_cashout, name='api-request-cashout'),
+    path('api/cashout-requests/', views.get_cashout_requests, name='api-cashout-requests'),
+    path('api/available-earnings/', views.get_available_earnings, name='api-available-earnings'),
+    path('api/generate-text-content/', views.generate_text_content, name='api-generate-text-content'),
+    path('api/generate-product-image/', views.generate_product_image, name='api-generate-product-image'),
 ]

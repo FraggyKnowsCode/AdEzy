@@ -7,14 +7,15 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.db import transaction
 from django.utils import timezone
-from .models import Gig, Order, UserProfile, Category, Transaction, Message
+from .models import Gig, Order, UserProfile, Category, Transaction, Message, BalanceRequest, CashoutRequest
 import json
 import os
+import requests
 from django.conf import settings
 from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 import io
 from django.core.files.base import ContentFile
-import google.generativeai as genai
+from openai import OpenAI
 
 def home(request):
     """Render the home page (HTML skeleton)"""
@@ -119,12 +120,32 @@ def css_showcase(request):
 
 def get_all_gigs_json(request):
     """
-    API endpoint: Return all active gigs as JSON
+    API endpoint: Return all active gigs as JSON with filtering support
     URL: /api/gigs/
+    Query Parameters:
+    - category: Filter by category name
+    - filter: 'top-rated', 'new', or 'all' (default)
     Note: Gigs remain available regardless of order status.
     Users can order the same gig multiple times.
     """
     gigs = Gig.objects.filter(status='active').select_related('seller', 'category')
+    
+    # Category filtering
+    category_filter = request.GET.get('category', None)
+    if category_filter:
+        gigs = gigs.filter(category__name__iexact=category_filter)
+    
+    # Filter by type
+    filter_type = request.GET.get('filter', 'all')
+    if filter_type == 'top-rated':
+        # Filter gigs with rating >= 4.5 or is_featured=True
+        gigs = gigs.filter(is_featured=True).order_by('-rating', '-total_orders')
+    elif filter_type == 'new':
+        # Get gigs created in last 30 days
+        from datetime import timedelta
+        from django.utils import timezone
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        gigs = gigs.filter(created_at__gte=thirty_days_ago).order_by('-created_at')
     
     gigs_data = []
     for gig in gigs:
@@ -137,6 +158,11 @@ def get_all_gigs_json(request):
             'category': gig.category.name if gig.category else 'Uncategorized',
             'delivery_time': gig.delivery_time,
             'description': gig.description[:100] + '...' if len(gig.description) > 100 else gig.description,
+            'rating': float(gig.rating) if gig.rating else 0,
+            'total_reviews': gig.total_reviews,
+            'total_orders': gig.total_orders,
+            'is_featured': gig.is_featured,
+            'created_at': gig.created_at.isoformat(),
         })
     
     return JsonResponse({'gigs': gigs_data}, safe=False)
@@ -416,15 +442,12 @@ def generate_poster_api(request):
         if not product_image or not description:
             return JsonResponse({'success': False, 'error': 'Product image and description are required'}, status=400)
         
-        # Configure Gemini API
-        api_key = getattr(settings, 'GEMINI_API_KEY', None)
-        if not api_key:
+        # Configure Gemini API for caption generation
+        gemini_key = getattr(settings, 'GEMINI_API_KEY', None)
+        if not gemini_key:
             return JsonResponse({'success': False, 'error': 'API key not configured'}, status=500)
         
-        genai.configure(api_key=api_key)
-        
-        # Step 1: Generate AI caption using text model
-        caption_model = genai.GenerativeModel('gemini-2.0-flash-exp')
+        # Step 1: Generate AI caption using Gemini
         caption_prompt = f"""Create a catchy, engaging social media caption for a poster with this description: {description}
         
         Requirements:
@@ -434,11 +457,33 @@ def generate_poster_api(request):
         - Make it shareable and attention-grabbing
         - Focus on benefits and call-to-action"""
         
-        caption_response = caption_model.generate_content(caption_prompt)
-        ai_caption = caption_response.text
+        try:
+            response = requests.post(
+                'https://openrouter.ai/api/v1/chat/completions',
+                headers={
+                    'Authorization': f'Bearer {gemini_key}',
+                    'HTTP-Referer': 'https://adezy.com',
+                    'X-Title': 'AdEzy AI Generator',
+                    'Content-Type': 'application/json'
+                },
+                json={
+                    'model': 'google/gemini-2.0-flash-exp:free',
+                    'messages': [{'role': 'user', 'content': caption_prompt}]
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                ai_caption = result['choices'][0]['message']['content']
+            else:
+                ai_caption = "Check out this amazing product! 🌟 #ad #product #amazing"
+        except Exception as e:
+            print(f"Caption generation error: {e}")
+            ai_caption = "Check out this amazing product! 🌟 #ad #product #amazing"
         
-        # Step 2: Generate poster image using Gemini Image model
-        image_model = genai.GenerativeModel('gemini-2.5-flash-image')
+        # Step 2: Generate poster image using Seedream
+        api_key = getattr(settings, 'SEEDREAM_API_KEY', None)
         
         # Read and encode the product image
         product_image.seek(0)
@@ -478,8 +523,10 @@ Design Requirements:
                 {"mime_type": product_image.content_type, "data": product_image_data}
             ]
         
-        # Generate the poster
-        image_response = image_model.generate_content(generation_parts)
+        # Generate the poster using Seedream
+        # For image generation with Seedream, we'll use a different approach
+        # Since Seedream primarily focuses on text generation, we'll create enhanced prompts
+        image_response = None  # Placeholder for now
         
         # Extract generated image from response
         # The response typically contains base64 encoded image data
@@ -965,3 +1012,632 @@ def get_seller_earnings_json(request):
         'earnings_by_gig': list(earnings_by_gig.values()),
         'recent_earnings': recent_earnings
     })
+
+
+@login_required
+@require_http_methods(["POST"])
+def request_balance(request):
+    """Create a balance request"""
+    try:
+        data = json.loads(request.body)
+        amount = float(data.get('amount', 0))
+        note = data.get('note', '').strip()
+        
+        if amount <= 0:
+            return JsonResponse({'error': 'Amount must be greater than 0'}, status=400)
+        
+        # Create balance request
+        balance_request = BalanceRequest.objects.create(
+            user=request.user,
+            amount=amount,
+            note=note,
+            status='pending'
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Balance request submitted successfully',
+            'request_id': balance_request.id
+        })
+    
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def get_balance_requests(request):
+    """Get user's balance requests"""
+    requests_list = BalanceRequest.objects.filter(user=request.user).order_by('-created_at')
+    
+    data = []
+    for req in requests_list:
+        data.append({
+            'id': req.id,
+            'amount': float(req.amount),
+            'status': req.status,
+            'note': req.note,
+            'admin_note': req.admin_note,
+            'created_at': req.created_at.strftime('%b %d, %Y %I:%M %p'),
+            'updated_at': req.updated_at.strftime('%b %d, %Y %I:%M %p')
+        })
+    
+    return JsonResponse({'requests': data})
+
+
+@login_required
+@require_http_methods(["POST"])
+def request_cashout(request):
+    """Create a cashout request"""
+    try:
+        from django.db.models import Sum
+        
+        data = json.loads(request.body)
+        amount = float(data.get('amount', 0))
+        payment_method = data.get('payment_method', '').strip()
+        payment_details = data.get('payment_details', '').strip()
+        note = data.get('note', '').strip()
+        
+        if amount <= 0:
+            return JsonResponse({'error': 'Amount must be greater than 0'}, status=400)
+        
+        if not payment_method or not payment_details:
+            return JsonResponse({'error': 'Payment method and details are required'}, status=400)
+        
+        # Calculate available earnings
+        total_earnings = Order.objects.filter(
+            seller=request.user,
+            status='completed'
+        ).aggregate(total=Sum('price'))['total'] or 0
+        
+        # Get total already cashed out
+        total_cashed_out = CashoutRequest.objects.filter(
+            user=request.user,
+            status='approved'
+        ).aggregate(total=Sum('amount'))['total'] or 0
+        
+        available_earnings = float(total_earnings) - float(total_cashed_out)
+        
+        if amount > available_earnings:
+            return JsonResponse({
+                'error': f'Insufficient earnings. Available: {available_earnings:.2f} Taka'
+            }, status=400)
+        
+        # Create cashout request
+        cashout_request = CashoutRequest.objects.create(
+            user=request.user,
+            amount=amount,
+            payment_method=payment_method,
+            payment_details=payment_details,
+            note=note,
+            status='pending'
+        )
+        
+        return JsonResponse({
+            'success': True,
+            'message': 'Cashout request submitted successfully',
+            'request_id': cashout_request.id,
+            'available_earnings': available_earnings - amount
+        })
+    
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
+
+
+@login_required
+def get_cashout_requests(request):
+    """Get user's cashout requests"""
+    requests_list = CashoutRequest.objects.filter(user=request.user).order_by('-created_at')
+    
+    data = []
+    for req in requests_list:
+        data.append({
+            'id': req.id,
+            'amount': float(req.amount),
+            'status': req.status,
+            'payment_method': req.payment_method,
+            'payment_details': req.payment_details,
+            'note': req.note,
+            'admin_note': req.admin_note,
+            'created_at': req.created_at.strftime('%b %d, %Y %I:%M %p'),
+            'updated_at': req.updated_at.strftime('%b %d, %Y %I:%M %p')
+        })
+    
+    return JsonResponse({'requests': data})
+
+
+@login_required
+def get_available_earnings(request):
+    """Get user's available earnings for cashout"""
+    from django.db.models import Sum
+    
+    # Calculate total earnings
+    total_earnings = Order.objects.filter(
+        seller=request.user,
+        status='completed'
+    ).aggregate(total=Sum('price'))['total'] or 0
+    
+    # Get total already cashed out
+    total_cashed_out = CashoutRequest.objects.filter(
+        user=request.user,
+        status='approved'
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    available_earnings = float(total_earnings) - float(total_cashed_out)
+    
+    return JsonResponse({
+        'total_earnings': float(total_earnings),
+        'total_cashed_out': float(total_cashed_out),
+        'available_earnings': available_earnings
+    })
+
+@login_required
+@require_http_methods(["POST"])
+def generate_text_content(request):
+    """Generate marketing content (captions, hashtags, etc.) using AI"""
+    try:
+        data = json.loads(request.body)
+        product_desc = data.get('product_desc', '').strip()
+        target_audience = data.get('target_audience', '').strip()
+        platform = data.get('platform', 'general')
+        
+        gen_caption = data.get('gen_caption', False)
+        gen_hashtags = data.get('gen_hashtags', False)
+        gen_cta = data.get('gen_cta', False)
+        gen_hooks = data.get('gen_hooks', False)
+        
+        if not product_desc:
+            return JsonResponse({'success': False, 'error': 'Product description is required'}, status=400)
+        
+        # Configure Gemini API for text generation
+        api_key = getattr(settings, 'GEMINI_API_KEY', None)
+        if not api_key:
+            return JsonResponse({'success': False, 'error': 'API key not configured'}, status=500)
+        
+        content = {}
+        
+        # Generate Caption
+        if gen_caption:
+            caption_prompt = f"""Create an engaging social media caption for {platform} with these details:
+Product: {product_desc}
+Target Audience: {target_audience or 'general audience'}
+
+Requirements:
+- Make it catchy and attention-grabbing
+- 2-3 sentences max
+- Include relevant emojis naturally
+- Focus on benefits and emotional appeal
+- Platform-appropriate tone for {platform}
+- End with a subtle call-to-action
+
+Return only the caption, nothing else."""
+            
+            response = requests.post(
+                'https://openrouter.ai/api/v1/chat/completions',
+                headers={
+                    'Authorization': f'Bearer {api_key}',
+                    'HTTP-Referer': 'https://adezy.com',
+                    'X-Title': 'AdEzy AI Generator',
+                    'Content-Type': 'application/json'
+                },
+                json={
+                    'model': 'google/gemini-2.0-flash-exp:free',
+                    'messages': [{'role': 'user', 'content': caption_prompt}]
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                content['caption'] = result['choices'][0]['message']['content'].strip()
+            else:
+                print(f"Caption API Error: {response.status_code}, {response.text}")
+                content['caption'] = "Unable to generate caption at this time."
+        
+        # Generate Hashtags
+        if gen_hashtags:
+            hashtags_prompt = f"""Generate relevant hashtags for this product on {platform}:
+Product: {product_desc}
+Target Audience: {target_audience or 'general audience'}
+
+Requirements:
+- Mix of popular and niche hashtags
+- 10-15 hashtags
+- Include branded, category, and trending hashtags
+- Platform-appropriate for {platform}
+- Format: #hashtag1 #hashtag2 #hashtag3 etc.
+
+Return only the hashtags separated by spaces, nothing else."""
+            
+            response = requests.post(
+                'https://openrouter.ai/api/v1/chat/completions',
+                headers={
+                    'Authorization': f'Bearer {api_key}',
+                    'HTTP-Referer': 'https://adezy.com',
+                    'X-Title': 'AdEzy AI Generator',
+                    'Content-Type': 'application/json'
+                },
+                json={
+                    'model': 'google/gemini-2.0-flash-exp:free',
+                    'messages': [{'role': 'user', 'content': hashtags_prompt}]
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                content['hashtags'] = result['choices'][0]['message']['content'].strip()
+            else:
+                print(f"Hashtags API Error: {response.status_code}, {response.text}")
+                content['hashtags'] = "#marketing #business #product"
+        
+        # Generate Call to Action
+        if gen_cta:
+            cta_prompt = f"""Create 3 powerful call-to-action lines for {platform} promoting:
+Product: {product_desc}
+Target Audience: {target_audience or 'general audience'}
+
+Requirements:
+- Action-oriented and urgent
+- One line each (separate with line breaks)
+- Include emojis
+- Create FOMO (fear of missing out)
+- Platform-appropriate for {platform}
+
+Return only the 3 CTA lines, nothing else."""
+            
+            response = requests.post(
+                'https://openrouter.ai/api/v1/chat/completions',
+                headers={
+                    'Authorization': f'Bearer {api_key}',
+                    'HTTP-Referer': 'https://adezy.com',
+                    'X-Title': 'AdEzy AI Generator',
+                    'Content-Type': 'application/json'
+                },
+                json={
+                    'model': 'google/gemini-2.0-flash-exp:free',
+                    'messages': [{'role': 'user', 'content': cta_prompt}]
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                content['cta'] = result['choices'][0]['message']['content'].strip()
+            else:
+                print(f"CTA API Error: {response.status_code}, {response.text}")
+                content['cta'] = "🔥 Get yours now!\n💥 Limited time offer!\n✨ Don't miss out!"
+        
+        # Generate Hook Lines
+        if gen_hooks:
+            hooks_prompt = f"""Create 5 attention-grabbing hook lines to start a {platform} post about:
+Product: {product_desc}
+Target Audience: {target_audience or 'general audience'}
+
+Requirements:
+- Make people stop scrolling
+- Question-based or surprising statements
+- One line each (separate with line breaks)
+- Include emojis where appropriate
+- Curiosity-driven
+
+Return only the 5 hook lines, nothing else."""
+            
+            response = requests.post(
+                'https://openrouter.ai/api/v1/chat/completions',
+                headers={
+                    'Authorization': f'Bearer {api_key}',
+                    'HTTP-Referer': 'https://adezy.com',
+                    'X-Title': 'AdEzy AI Generator',
+                    'Content-Type': 'application/json'
+                },
+                json={
+                    'model': 'google/gemini-2.0-flash-exp:free',
+                    'messages': [{'role': 'user', 'content': hooks_prompt}]
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                content['hooks'] = result['choices'][0]['message']['content'].strip()
+            else:
+                print(f"Hooks API Error: {response.status_code}, {response.text}")
+                content['hooks'] = "🤔 Want to know a secret?\n💡 What if I told you...\n🎯 Ready to transform your life?\n⚡ This changes everything!\n🌟 You won't believe this!"
+        
+        return JsonResponse({
+            'success': True,
+            'content': content
+        })
+        
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error generating text content: {error_details}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+@login_required
+@require_http_methods(["POST"])
+def generate_product_image(request):
+    """Generate product image using AI"""
+    try:
+        import requests
+        import base64
+        from io import BytesIO
+        
+        data = json.loads(request.body)
+        product_type = data.get('product_type', '').strip()
+        style = data.get('style', '').strip()
+        background = data.get('background', 'white')
+        format_type = data.get('format', 'square')
+        
+        if not product_type or not style:
+            return JsonResponse({'success': False, 'error': 'Product type and style are required'}, status=400)
+        
+        # Map format to dimensions
+        format_map = {
+            'square': (1080, 1080),
+            'portrait': (1080, 1350),
+            'story': (1080, 1920),
+            'landscape': (1200, 628)
+        }
+        width, height = format_map.get(format_type, (1080, 1080))
+        
+        # Map background to descriptive text
+        background_map = {
+            'white': 'clean white background, minimalist, professional, studio lighting',
+            'gradient': 'modern gradient background (purple to blue), vibrant colors, eye-catching, dynamic',
+            'wooden': 'rustic wooden table surface, natural wood grain texture, warm brown tones, soft natural light',
+            'marble': 'luxury white marble surface with gray veins, elegant, high-end aesthetic, pristine',
+            'lifestyle': 'realistic lifestyle setting, natural environment, authentic, in-context usage',
+            'nature': 'outdoor natural setting, lush greenery, soft sunlight, organic atmosphere',
+            'studio': 'professional photography studio, dramatic lighting, dark background, spotlight on subject'
+        }
+        background_desc = background_map.get(background, 'neutral background')
+        
+        # Configure Seedream API
+        api_key = getattr(settings, 'SEEDREAM_API_KEY', None)
+        if not api_key:
+            return JsonResponse({'success': False, 'error': 'API key not configured'}, status=500)
+        
+        # Create highly detailed prompt for image generation
+        detailed_prompt = f"""Create a high-quality, professional product photography image of: {product_type}
+
+Style & Details: {style}
+
+Background: {background_desc}
+
+Technical specifications:
+- Resolution: {width}x{height}px
+- Ultra-high quality, 8K resolution
+- Professional product photography
+- Sharp focus on the product
+- Perfect composition and framing
+- Photorealistic rendering
+- Professional color grading
+- Studio-quality lighting
+
+Composition guidelines:
+- Center the product prominently
+- Ensure the product takes up 60-70% of the frame
+- Maintain proper proportions and perspective
+- Add subtle shadows for depth
+- Include soft highlights to show texture
+- Professional product shot aesthetic
+
+If text is mentioned in the prompt, render it with:
+- Bold, sans-serif font (like Montserrat Bold or Impact)
+- White text color (#FFFFFF)
+- Thick black outline/stroke (3-4px) for contrast
+- High readability and visibility
+- Positioned according to composition rules
+- Shadow effect for depth
+
+Make the image look like a professional advertisement or social media post, ready to use immediately."""
+        
+        # Use OpenRouter with Seedream for image generation
+        try:
+            response = requests.post(
+                'https://openrouter.ai/api/v1/chat/completions',
+                headers={
+                    'Authorization': f'Bearer {api_key}',
+                    'HTTP-Referer': 'https://adezy.com',
+                    'X-Title': 'AdEzy AI Generator',
+                    'Content-Type': 'application/json'
+                },
+                json={
+                    'model': 'bytedance-seed/seedream-4.5',
+                    'messages': [
+                        {
+                            'role': 'user',
+                            'content': [
+                                {
+                                    'type': 'text',
+                                    'text': detailed_prompt
+                                }
+                            ]
+                        }
+                    ],
+                    'max_tokens': 1024,
+                    'temperature': 0.7
+                },
+                timeout=60
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                
+                # Check if image was generated
+                if 'choices' in result and len(result['choices']) > 0:
+                    message = result['choices'][0].get('message', {})
+                    
+                    # Look for image in the response
+                    if 'content' in message:
+                        content = message['content']
+                        
+                        # Check if content is a list (multimodal response)
+                        if isinstance(content, list):
+                            for item in content:
+                                if isinstance(item, dict) and item.get('type') == 'image_url':
+                                    image_url = item.get('image_url', {}).get('url', '')
+                                    if image_url:
+                                        # Download and save the image
+                                        image_filename = f'ai_product_{request.user.id}_{timezone.now().timestamp()}.jpg'
+                                        image_path = os.path.join(settings.MEDIA_ROOT, 'ai_images', image_filename)
+                                        os.makedirs(os.path.dirname(image_path), exist_ok=True)
+                                        
+                                        # Handle base64 or URL
+                                        if image_url.startswith('data:image'):
+                                            # Base64 encoded image
+                                            image_data = image_url.split('base64,')[1]
+                                            with open(image_path, 'wb') as f:
+                                                f.write(base64.b64decode(image_data))
+                                        else:
+                                            # URL - download the image
+                                            img_response = requests.get(image_url)
+                                            with open(image_path, 'wb') as f:
+                                                f.write(img_response.content)
+                                        
+                                        final_image_url = os.path.join(settings.MEDIA_URL, 'ai_images', image_filename)
+                                        return JsonResponse({
+                                            'success': True,
+                                            'image_url': final_image_url,
+                                            'prompt_used': detailed_prompt
+                                        })
+            
+            # If image generation via API didn't work, create enhanced placeholder
+            print(f"Seedream response: {response.status_code}, {response.text}")
+            
+        except Exception as api_error:
+            print(f"API Error: {api_error}")
+        
+        # Fallback: Create enhanced placeholder with PIL
+        from PIL import Image, ImageDraw, ImageFont, ImageEnhance, ImageFilter
+        
+        # Create high-quality base image
+        img = Image.new('RGB', (width, height), color='#ffffff')
+        draw = ImageDraw.Draw(img)
+        
+        # Create sophisticated gradient background
+        for i in range(height):
+            alpha = i / height
+            if background == 'gradient':
+                # Purple to blue gradient
+                r = int(147 * (1 - alpha) + 59 * alpha)
+                g = int(51 * (1 - alpha) + 130 * alpha)
+                b = int(234 * (1 - alpha) + 246 * alpha)
+            elif background == 'wooden':
+                # Warm brown tones
+                r = int(139 * (1 - alpha) + 101 * alpha)
+                g = int(90 * (1 - alpha) + 67 * alpha)
+                b = int(43 * (1 - alpha) + 33 * alpha)
+            elif background == 'marble':
+                # White with subtle gray
+                r = int(255 * (1 - alpha * 0.05))
+                g = int(255 * (1 - alpha * 0.05))
+                b = int(255 * (1 - alpha * 0.08))
+            else:
+                # Clean white to light gray
+                r = g = b = int(255 * (1 - alpha * 0.02))
+            draw.rectangle([(0, i), (width, i+1)], fill=(r, g, b))
+        
+        # Add decorative elements
+        if background == 'gradient':
+            # Add some circles for visual interest
+            for _ in range(3):
+                import random
+                cx = random.randint(0, width)
+                cy = random.randint(0, height)
+                radius = random.randint(50, 150)
+                draw.ellipse([cx-radius, cy-radius, cx+radius, cy+radius], 
+                           fill=(255, 255, 255, 30))
+        
+        # Load or create fonts
+        try:
+            # Try to load Impact font for bold text
+            title_font = ImageFont.truetype("impact.ttf", int(height * 0.12))
+            subtitle_font = ImageFont.truetype("arial.ttf", int(height * 0.05))
+            small_font = ImageFont.truetype("arial.ttf", int(height * 0.03))
+        except:
+            try:
+                title_font = ImageFont.truetype("arial.ttf", int(height * 0.12))
+                subtitle_font = ImageFont.truetype("arial.ttf", int(height * 0.05))
+                small_font = ImageFont.truetype("arial.ttf", int(height * 0.03))
+            except:
+                title_font = ImageFont.load_default()
+                subtitle_font = ImageFont.load_default()
+                small_font = ImageFont.load_default()
+        
+        # Extract text from product description if mentioned
+        main_text = product_type.upper()
+        
+        # Draw text with white fill and black outline
+        # Calculate text position (center)
+        bbox = draw.textbbox((0, 0), main_text, font=title_font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+        x = (width - text_width) // 2
+        y = (height - text_height) // 2 - int(height * 0.1)
+        
+        # Draw black outline (multiple passes for thick stroke)
+        outline_width = 4
+        for offset_x in range(-outline_width, outline_width + 1):
+            for offset_y in range(-outline_width, outline_width + 1):
+                if offset_x != 0 or offset_y != 0:
+                    draw.text((x + offset_x, y + offset_y), main_text, 
+                            fill='#000000', font=title_font)
+        
+        # Draw white text on top
+        draw.text((x, y), main_text, fill='#FFFFFF', font=title_font)
+        
+        # Add style description below
+        style_text = style[:50]
+        bbox = draw.textbbox((0, 0), style_text, font=subtitle_font)
+        text_width = bbox[2] - bbox[0]
+        x = (width - text_width) // 2
+        y = y + text_height + int(height * 0.05)
+        
+        # Outline for subtitle
+        for offset_x in range(-2, 3):
+            for offset_y in range(-2, 3):
+                if offset_x != 0 or offset_y != 0:
+                    draw.text((x + offset_x, y + offset_y), style_text, 
+                            fill='#000000', font=subtitle_font)
+        draw.text((x, y), style_text, fill='#FFFFFF', font=subtitle_font)
+        
+        # Add watermark
+        watermark = "AdEzy AI Studio"
+        bbox = draw.textbbox((0, 0), watermark, font=small_font)
+        text_width = bbox[2] - bbox[0]
+        x = width - text_width - 20
+        y = height - 40
+        draw.text((x, y), watermark, fill=(255, 255, 255, 180), font=small_font)
+        
+        # Apply slight blur for professional look (subtle)
+        # img = img.filter(ImageFilter.GaussianBlur(radius=0.5))
+        
+        # Enhance contrast and sharpness
+        enhancer = ImageEnhance.Contrast(img)
+        img = enhancer.enhance(1.2)
+        
+        enhancer = ImageEnhance.Sharpness(img)
+        img = enhancer.enhance(1.3)
+        
+        # Save image
+        image_filename = f'ai_product_{request.user.id}_{timezone.now().timestamp()}.jpg'
+        image_path = os.path.join(settings.MEDIA_ROOT, 'ai_images', image_filename)
+        os.makedirs(os.path.dirname(image_path), exist_ok=True)
+        img.save(image_path, 'JPEG', quality=95, optimize=True)
+        
+        image_url = os.path.join(settings.MEDIA_URL, 'ai_images', image_filename)
+        
+        return JsonResponse({
+            'success': True,
+            'image_url': image_url,
+            'prompt_used': detailed_prompt
+        })
+        
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error generating product image: {error_details}")
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)

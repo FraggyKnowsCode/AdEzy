@@ -2,7 +2,7 @@
 Middleware to separate admin and regular user sessions
 """
 from django.contrib.auth import login, logout
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, AnonymousUser
 
 
 class SeparateAdminSessionMiddleware:
@@ -22,17 +22,10 @@ class SeparateAdminSessionMiddleware:
             # Handle admin session
             self._load_admin_session(request)
         else:
-            # Handle regular user session
-            self._load_regular_session(request)
+            # Handle regular user session - already loaded by AuthenticationMiddleware
+            pass
         
         response = self.get_response(request)
-        
-        # Save session state after response
-        if is_admin_request:
-            self._save_admin_session(request)
-        else:
-            self._save_regular_session(request)
-        
         return response
     
     def _load_admin_session(self, request):
@@ -43,10 +36,23 @@ class SeparateAdminSessionMiddleware:
             try:
                 user = User.objects.get(pk=admin_user_id)
                 if user.is_active and user.is_staff:
+                    # Override the request.user with admin user
                     request.user = user
                     request._cached_user = user
+                else:
+                    # Invalid admin session
+                    if '_admin_user_id' in request.session:
+                        del request.session['_admin_user_id']
+                    request.user = AnonymousUser()
             except User.DoesNotExist:
-                pass
+                # User doesn't exist, clear session
+                if '_admin_user_id' in request.session:
+                    del request.session['_admin_user_id']
+                request.user = AnonymousUser()
+        else:
+            # No admin session, ensure user is anonymous for admin area
+            if not hasattr(request, 'user') or not request.user.is_staff:
+                request.user = AnonymousUser()
     
     def _load_regular_session(self, request):
         """Regular session is handled by default Django auth"""

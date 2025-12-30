@@ -1,0 +1,283 @@
+{% extends 'marketplace/base.html' %}
+
+{% block title %}AI Poster Generator - AdEzy{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 1200px; margin: 40px auto; padding: 0 20px;">
+    <div class="glass-panel" style="padding: 40px;">
+        <div style="text-align: center; margin-bottom: 40px;">
+            <h1 style="font-size: 2.5rem; color: var(--deep-blue); margin-bottom: 10px;">
+                <i class="fas fa-magic" style="color: var(--gold);"></i> AI Poster Generator
+            </h1>
+            <p style="color: #64748b; font-size: 1.1rem;">
+                Create stunning social media posters with AI-powered design
+            </p>
+        </div>
+
+        {% if messages %}
+            {% for message in messages %}
+                <div style="padding: 15px; margin-bottom: 20px; background: {% if message.tags == 'error' %}#fee; border: 1px solid #fcc{% else %}#efe; border: 1px solid #cfc{% endif %}; border-radius: 8px; color: var(--deep-blue);">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+            <!-- Left Column: Upload Section -->
+            <div>
+                <div class="upload-section" style="margin-bottom: 25px;">
+                    <h3 style="color: var(--deep-blue); margin-bottom: 15px; display: flex; align-items: center;">
+                        <i class="fas fa-image" style="color: var(--gold); margin-right: 10px;"></i>
+                        Product Image
+                    </h3>
+                    <div class="upload-area" id="product-upload-area">
+                        <input type="file" id="product-image" accept="image/*" style="display: none;">
+                        <label for="product-image" class="upload-label">
+                            <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--gold); margin-bottom: 15px;"></i>
+                            <p style="color: var(--deep-blue); font-weight: 600; margin-bottom: 5px;">Click to upload product image</p>
+                            <p style="color: #64748b; font-size: 0.9rem;">PNG, JPG up to 10MB</p>
+                        </label>
+                        <div id="product-preview" class="image-preview" style="display: none;">
+                            <img id="product-preview-img" src="" alt="Product preview">
+                            <button onclick="removeProductImage()" class="remove-btn">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="upload-section" style="margin-bottom: 25px;">
+                    <h3 style="color: var(--deep-blue); margin-bottom: 15px; display: flex; align-items: center;">
+                        <i class="fas fa-trademark" style="color: var(--gold); margin-right: 10px;"></i>
+                        Brand Logo (Optional)
+                    </h3>
+                    <div class="upload-area" id="logo-upload-area">
+                        <input type="file" id="logo-image" accept="image/*" style="display: none;">
+                        <label for="logo-image" class="upload-label">
+                            <i class="fas fa-cloud-upload-alt" style="font-size: 3rem; color: var(--gold); margin-bottom: 15px;"></i>
+                            <p style="color: var(--deep-blue); font-weight: 600; margin-bottom: 5px;">Click to upload brand logo</p>
+                            <p style="color: #64748b; font-size: 0.9rem;">PNG, JPG with transparency recommended</p>
+                        </label>
+                        <div id="logo-preview" class="image-preview" style="display: none;">
+                            <img id="logo-preview-img" src="" alt="Logo preview">
+                            <button onclick="removeLogoImage()" class="remove-btn">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="description-section">
+                    <h3 style="color: var(--deep-blue); margin-bottom: 15px; display: flex; align-items: center;">
+                        <i class="fas fa-align-left" style="color: var(--gold); margin-right: 10px;"></i>
+                        Poster Description
+                    </h3>
+                    <textarea 
+                        id="poster-description" 
+                        class="search-input" 
+                        placeholder="E.g., Create a vibrant summer sale poster for organic skincare products, emphasizing natural ingredients and 30% discount..."
+                        rows="6"
+                        style="width: 100%; resize: vertical; font-family: inherit;"
+                    ></textarea>
+                    <p style="margin-top: 10px; color: #64748b; font-size: 0.9rem;">
+                        <i class="fas fa-info-circle"></i> Be specific about colors, mood, text to include, and target audience
+                    </p>
+                </div>
+
+                <button onclick="generatePoster()" id="generate-btn" class="btn btn-primary" style="width: 100%; padding: 15px; margin-top: 20px; font-size: 1.1rem;">
+                    <i class="fas fa-magic"></i> Generate Poster
+                </button>
+            </div>
+
+            <!-- Right Column: Preview Section -->
+            <div>
+                <div class="preview-section">
+                    <h3 style="color: var(--deep-blue); margin-bottom: 15px; display: flex; align-items: center;">
+                        <i class="fas fa-eye" style="color: var(--gold); margin-right: 10px;"></i>
+                        Generated Poster
+                    </h3>
+                    <div id="poster-result" class="poster-result-area">
+                        <div class="empty-state">
+                            <i class="fas fa-image" style="font-size: 4rem; color: #cbd5e1; margin-bottom: 20px;"></i>
+                            <p style="color: #64748b; font-size: 1.1rem; margin-bottom: 10px;">Your poster will appear here</p>
+                            <p style="color: #94a3b8; font-size: 0.95rem;">Upload images and add description to get started</p>
+                        </div>
+                    </div>
+
+                    <!-- Generated Description -->
+                    <div id="generated-description-section" style="display: none; margin-top: 25px;">
+                        <h3 style="color: var(--deep-blue); margin-bottom: 15px; display: flex; align-items: center;">
+                            <i class="fas fa-comment-dots" style="color: var(--gold); margin-right: 10px;"></i>
+                            AI-Generated Caption
+                        </h3>
+                        <div id="generated-description" style="padding: 20px; background: #f8fafc; border-radius: 12px; border: 2px solid var(--gold); color: var(--deep-blue); line-height: 1.6;">
+                            <!-- Generated description will appear here -->
+                        </div>
+                        <button onclick="copyDescription()" class="btn btn-secondary" style="width: 100%; margin-top: 15px;">
+                            <i class="fas fa-copy"></i> Copy Caption
+                        </button>
+                    </div>
+
+                    <!-- Download Section -->
+                    <div id="download-section" style="display: none; margin-top: 25px;">
+                        <button onclick="downloadPoster()" class="btn btn-primary" style="width: 100%; padding: 15px;">
+                            <i class="fas fa-download"></i> Download Poster
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Generation Progress -->
+        <div id="generation-progress" class="generation-progress" style="display: none;">
+            <div class="progress-content">
+                <div class="spinner"></div>
+                <p style="margin-top: 20px; color: var(--deep-blue); font-weight: 600;">Generating your poster...</p>
+                <p style="color: #64748b; margin-top: 10px;">This may take 10-20 seconds</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let productImageFile = null;
+let logoImageFile = null;
+let generatedPosterUrl = null;
+
+// Product image upload
+document.getElementById('product-image').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        productImageFile = file;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('product-preview-img').src = e.target.result;
+            document.getElementById('product-preview').style.display = 'block';
+            document.querySelector('#product-upload-area .upload-label').style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+// Logo image upload
+document.getElementById('logo-image').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        logoImageFile = file;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            document.getElementById('logo-preview-img').src = e.target.result;
+            document.getElementById('logo-preview').style.display = 'block';
+            document.querySelector('#logo-upload-area .upload-label').style.display = 'none';
+        };
+        reader.readAsDataURL(file);
+    }
+});
+
+function removeProductImage() {
+    productImageFile = null;
+    document.getElementById('product-image').value = '';
+    document.getElementById('product-preview').style.display = 'none';
+    document.querySelector('#product-upload-area .upload-label').style.display = 'flex';
+}
+
+function removeLogoImage() {
+    logoImageFile = null;
+    document.getElementById('logo-image').value = '';
+    document.getElementById('logo-preview').style.display = 'none';
+    document.querySelector('#logo-upload-area .upload-label').style.display = 'flex';
+}
+
+async function generatePoster() {
+    const description = document.getElementById('poster-description').value.trim();
+    
+    if (!productImageFile) {
+        alert('Please upload a product image');
+        return;
+    }
+    
+    if (!description) {
+        alert('Please add a description for your poster');
+        return;
+    }
+    
+    const generateBtn = document.getElementById('generate-btn');
+    const progressDiv = document.getElementById('generation-progress');
+    
+    // Show progress
+    generateBtn.disabled = true;
+    progressDiv.style.display = 'flex';
+    
+    try {
+        const formData = new FormData();
+        formData.append('product_image', productImageFile);
+        if (logoImageFile) {
+            formData.append('logo_image', logoImageFile);
+        }
+        formData.append('description', description);
+        
+        const response = await fetch('/api/generate-poster/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token }}'
+            },
+            body: formData
+        });
+        
+        const data = await response.json();
+        
+        if (data.success) {
+            // Display generated poster
+            const posterResult = document.getElementById('poster-result');
+            posterResult.innerHTML = `
+                <img src="${data.poster_url}" alt="Generated poster" style="width: 100%; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
+            `;
+            
+            // Display generated description
+            if (data.description) {
+                document.getElementById('generated-description').textContent = data.description;
+                document.getElementById('generated-description-section').style.display = 'block';
+            }
+            
+            // Show download button
+            document.getElementById('download-section').style.display = 'block';
+            generatedPosterUrl = data.poster_url;
+            
+            // Scroll to result
+            posterResult.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        } else {
+            alert('Error: ' + (data.error || 'Failed to generate poster'));
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        alert('An error occurred while generating the poster. Please try again.');
+    } finally {
+        generateBtn.disabled = false;
+        progressDiv.style.display = 'none';
+    }
+}
+
+function copyDescription() {
+    const description = document.getElementById('generated-description').textContent;
+    navigator.clipboard.writeText(description).then(() => {
+        const btn = event.target.closest('button');
+        const originalHTML = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-check"></i> Copied!';
+        btn.style.background = '#10b981';
+        setTimeout(() => {
+            btn.innerHTML = originalHTML;
+            btn.style.background = '';
+        }, 2000);
+    });
+}
+
+function downloadPoster() {
+    if (generatedPosterUrl) {
+        const link = document.createElement('a');
+        link.href = generatedPosterUrl;
+        link.download = 'adezy-poster-' + Date.now() + '.jpg';
+        link.click();
+    }
+}
+</script>
+{% endblock %}

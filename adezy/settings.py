@@ -172,5 +172,10 @@ LOGIN_URL = 'login'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'home'
 
-# Gemini API Configuration
-GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', 'AIzaSyCJ4jiMs4rLF7obek2-3UrcqOQQQzdoK7k')
+# Seedream API Configuration (ByteDance) - For Image Generation
+SEEDREAM_API_KEY = os.getenv('SEEDREAM_API_KEY', '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')
+SEEDREAM_API_BASE = os.getenv('SEEDREAM_API_BASE', 'https://openrouter.ai/api/v1')
+
+# Gemini API Configuration - For Text Generation
+GEMINI_API_KEY = os.getenv('GEMINI_API_KEY', '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')
+GEMINI_API_BASE = os.getenv('GEMINI_API_BASE', 'https://openrouter.ai/api/v1')

@@ -26,49 +26,8 @@
     </div>
 </div>
 
-<!-- Category Section -->
-<section class="categories-section">
-    <div class="container">
-        <h2 class="section-title">Browse by category</h2>
-        <div class="categories-grid" id="categories-container">
-            <div class="category-card">
-                <div class="category-icon">📱</div>
-                <h3>Social Media Marketing</h3>
-            </div>
-            <div class="category-card">
-                <div class="category-icon">🎯</div>
-                <h3>Google Ads</h3>
-            </div>
-            <div class="category-card">
-                <div class="category-icon">📊</div>
-                <h3>Facebook Ads</h3>
-            </div>
-            <div class="category-card">
-                <div class="category-icon">✍️</div>
-                <h3>Content Writing</h3>
-            </div>
-            <div class="category-card">
-                <div class="category-icon">🎨</div>
-                <h3>Graphic Design</h3>
-            </div>
-            <div class="category-card">
-                <div class="category-icon">📧</div>
-                <h3>Email Marketing</h3>
-            </div>
-            <div class="category-card">
-                <div class="category-icon">🔍</div>
-                <h3>SEO Services</h3>
-            </div>
-            <div class="category-card">
-                <div class="category-icon">📹</div>
-                <h3>Video Ads</h3>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- Popular Services Section -->
-<section class="services-section">
+<!-- Popular Services Section (Moved before categories) -->
+<section class="services-section" id="popular-services">
     <div class="container">
         <div class="section-header">
             <h2 class="section-title">Popular services</h2>
@@ -88,6 +47,55 @@
         <!-- Gigs Container (Populated by JavaScript) -->
         <div id="gig-container" class="gigs-grid">
             <div class="loading">Discovering popular services...</div>
+        </div>
+        
+        <!-- Show More Button -->
+        <div id="show-more-container" style="text-align: center; margin-top: 40px; display: none;">
+            <button id="show-more-btn" class="btn btn-secondary" onclick="showMoreGigs()" style="padding: 15px 40px; font-size: 1.05rem;">
+                <i class="fas fa-chevron-down"></i> Show More Gigs
+            </button>
+            <p id="gigs-count-info" style="margin-top: 15px; color: #64748b; font-size: 0.95rem;"></p>
+        </div>
+    </div>
+</section>
+
+<!-- Category Section -->
+<section class="categories-section">
+    <div class="container">
+        <h2 class="section-title">Browse by category</h2>
+        <div class="categories-grid" id="categories-container">
+            <div class="category-card" onclick="filterByCategory('Social Media Marketing')">
+                <div class="category-icon">📱</div>
+                <h3>Social Media Marketing</h3>
+            </div>
+            <div class="category-card" onclick="filterByCategory('Google Ads')">
+                <div class="category-icon">🎯</div>
+                <h3>Google Ads</h3>
+            </div>
+            <div class="category-card" onclick="filterByCategory('Facebook Ads')">
+                <div class="category-icon">📊</div>
+                <h3>Facebook Ads</h3>
+            </div>
+            <div class="category-card" onclick="filterByCategory('Content Writing')">
+                <div class="category-icon">✍️</div>
+                <h3>Content Writing</h3>
+            </div>
+            <div class="category-card" onclick="filterByCategory('Graphic Design')">
+                <div class="category-icon">🎨</div>
+                <h3>Graphic Design</h3>
+            </div>
+            <div class="category-card" onclick="filterByCategory('Email Marketing')">
+                <div class="category-icon">📧</div>
+                <h3>Email Marketing</h3>
+            </div>
+            <div class="category-card" onclick="filterByCategory('SEO Services')">
+                <div class="category-icon">🔍</div>
+                <h3>SEO Services</h3>
+            </div>
+            <div class="category-card" onclick="filterByCategory('Video Ads')">
+                <div class="category-icon">📹</div>
+                <h3>Video Ads</h3>
+            </div>
         </div>
     </div>
 </section>

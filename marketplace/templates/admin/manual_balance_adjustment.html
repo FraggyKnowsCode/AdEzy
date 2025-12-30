@@ -1,0 +1,51 @@
+{% extends "admin/base_site.html" %}
+
+{% block content %}
+<h1>Manual Balance Adjustment</h1>
+
+<form method="post" style="max-width: 600px;">
+    {% csrf_token %}
+    
+    <div style="margin-bottom: 20px;">
+        <label for="user_id" style="display: block; margin-bottom: 5px; font-weight: bold;">Select User:</label>
+        <select name="user_id" id="user_id" required style="width: 100%; padding: 8px; font-size: 14px;">
+            <option value="">Choose a user...</option>
+            {% for user in users %}
+                <option value="{{ user.id }}">{{ user.username }} (Current: {{ user.profile.virtual_credits }} Taka)</option>
+            {% endfor %}
+        </select>
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+        <label for="adjustment_type" style="display: block; margin-bottom: 5px; font-weight: bold;">Adjustment Type:</label>
+        <select name="adjustment_type" id="adjustment_type" required style="width: 100%; padding: 8px; font-size: 14px;">
+            <option value="add">Add Balance</option>
+            <option value="subtract">Deduct Balance</option>
+        </select>
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+        <label for="amount" style="display: block; margin-bottom: 5px; font-weight: bold;">Amount (Taka):</label>
+        <input type="number" name="amount" id="amount" step="0.01" min="0.01" required 
+               style="width: 100%; padding: 8px; font-size: 14px;">
+    </div>
+    
+    <div style="margin-bottom: 20px;">
+        <label for="note" style="display: block; margin-bottom: 5px; font-weight: bold;">Note/Reason:</label>
+        <textarea name="note" id="note" rows="3" 
+                  style="width: 100%; padding: 8px; font-size: 14px;"
+                  placeholder="Enter reason for this adjustment..."></textarea>
+    </div>
+    
+    <div>
+        <button type="submit" style="padding: 10px 20px; background: #417690; color: white; border: none; cursor: pointer; font-size: 14px; border-radius: 4px;">
+            Apply Adjustment
+        </button>
+        <a href="{% url 'admin:marketplace_userprofile_changelist' %}" 
+           style="padding: 10px 20px; background: #999; color: white; text-decoration: none; display: inline-block; margin-left: 10px; border-radius: 4px;">
+            Cancel
+        </a>
+    </div>
+</form>
+
+{% endblock %}

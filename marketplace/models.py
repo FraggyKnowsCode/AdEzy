@@ -60,6 +60,16 @@ class Gig(models.Model):
     delivery_time = models.IntegerField(help_text="Delivery time in days")
     image = models.ImageField(upload_to='gigs/', blank=True, null=True)
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default='active')
+    rating = models.DecimalField(
+        max_digits=3, 
+        decimal_places=2, 
+        default=0.00,
+        validators=[MinValueValidator(0)],
+        help_text="Average rating (0-5)"
+    )
+    total_reviews = models.IntegerField(default=0, help_text="Total number of reviews")
+    total_orders = models.IntegerField(default=0, help_text="Total completed orders")
+    is_featured = models.BooleanField(default=False, help_text="Mark as featured/top-rated")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -183,3 +193,77 @@ class Notification(models.Model):
         indexes = [
             models.Index(fields=['user', 'is_read']),
         ]
+
+
+class BalanceRequest(models.Model):
+    """Balance top-up requests from users"""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='balance_requests')
+    amount = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        validators=[MinValueValidator(1)]
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    note = models.TextField(blank=True, help_text="User's note/reason for balance request")
+    admin_note = models.TextField(blank=True, help_text="Admin's note for approval/rejection")
+    processed_by = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='processed_balance_requests'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.amount} Taka - {self.status}"
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Balance Request'
+        verbose_name_plural = 'Balance Requests'
+
+
+class CashoutRequest(models.Model):
+    """Earnings cashout requests from sellers"""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='cashout_requests')
+    amount = models.DecimalField(
+        max_digits=10, 
+        decimal_places=2,
+        validators=[MinValueValidator(1)]
+    )
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    payment_method = models.CharField(max_length=100, help_text="Payment method (e.g., Bank, bKash, Nagad)")
+    payment_details = models.TextField(help_text="Payment details (account number, etc.)")
+    note = models.TextField(blank=True, help_text="User's note")
+    admin_note = models.TextField(blank=True, help_text="Admin's note for approval/rejection")
+    processed_by = models.ForeignKey(
+        User, 
+        on_delete=models.SET_NULL, 
+        null=True, 
+        blank=True, 
+        related_name='processed_cashout_requests'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"{self.user.username} - {self.amount} Taka - {self.status}"
+
+    class Meta:
+        ordering = ['-created_at']
+        verbose_name = 'Cashout Request'
+        verbose_name_plural = 'Cashout Requests'
