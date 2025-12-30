@@ -101,21 +101,26 @@ pip install -r requirements.txt
 Create a `.env` file in the project root with the following variables:
 
 ```env
-# Database Configuration (Supabase PostgreSQL)
+# AdEzy Environment Variables
+
+# Database Configuration
 USE_SUPABASE=True
-SUPABASE_DB_HOST=your-supabase-host.pooler.supabase.com
+
+# Supabase Database Credentials - Session Pooler (IPv4)
+SUPABASE_DB_HOST=aws-1-ap-southeast-1.pooler.supabase.com
 SUPABASE_DB_NAME=postgres
-SUPABASE_DB_USER=your-database-user
-SUPABASE_DB_PASSWORD=your-database-password
+SUPABASE_DB_USER=postgres.friagzimveexfizdlmqf
+SUPABASE_DB_PASSWORD=fahadsikder
 SUPABASE_DB_PORT=5432
 
-# AI API Configuration (OpenRouter)
-OPENROUTER_API_KEY=your-openrouter-api-key
+# Seedream API Configuration (ByteDance) - For Image Generation
+SEEDREAM_API_KEY=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
+SEEDREAM_API_BASE=https://openrouter.ai/api/v1
 
-# Django Settings
-DEBUG=True
-SECRET_KEY=your-secret-key-here-make-it-random
-ALLOWED_HOSTS=localhost,127.0.0.1
+# Gemini API Configuration - For Text Generation
+GEMINI_API_KEY=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
+GEMINI_API_BASE=https://openrouter.ai/api/v1
+
 ```
 
 > **Note**: Replace placeholder values with your actual credentials. Never commit the `.env` file to Git!
