@@ -237,6 +237,25 @@ function getCookie(name) {
 document.addEventListener('DOMContentLoaded', () => {
     const container = document.getElementById('messages-container');
     container.scrollTop = container.scrollHeight;
+    
+    // Auto-refresh messages every 3 seconds for real-time chat
+    let lastMessageCount = document.querySelectorAll('.message-bubble').length;
+    
+    setInterval(async () => {
+        try {
+            const orderId = {{ order.id }};
+            const response = await fetch(`/api/orders/${orderId}/messages/`);
+            const data = await response.json();
+            
+            if (data.messages && data.messages.length > lastMessageCount) {
+                // New messages arrived, refresh to show them
+                location.reload();
+            }
+            lastMessageCount = data.messages ? data.messages.length : lastMessageCount;
+        } catch (error) {
+            console.error('Error checking for new messages:', error);
+        }
+    }, 3000); // Check every 3 seconds
 });
 </script>
 {% endblock %}

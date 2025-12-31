@@ -114,11 +114,11 @@ SUPABASE_DB_PASSWORD=fahadsikder
 SUPABASE_DB_PORT=5432
 
 # Seedream API Configuration (ByteDance) - For Image Generation
-SEEDREAM_API_KEY=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
+SEEDREAM_API_KEY=
 SEEDREAM_API_BASE=https://openrouter.ai/api/v1
 
 # Gemini API Configuration - For Text Generation
-GEMINI_API_KEY=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
+GEMINI_API_KEY=
 GEMINI_API_BASE=https://openrouter.ai/api/v1
 
 ```

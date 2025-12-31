@@ -1,6 +1,17 @@
 // ========================================
 // AdEzy - Main JavaScript (Client-Side Logic)
 // ========================================
+// 
+// Real-time Updates (AJAX Polling):
+// - Notifications: Auto-refresh every 5 seconds
+// - Messages: Auto-refresh every 5 seconds
+// - Balance: Auto-refresh every 10 seconds
+// - Orders (Dashboard): Auto-refresh every 10 seconds
+// - Gigs (Home): Auto-refresh every 10 seconds
+// - Order Messages: Auto-refresh every 3 seconds
+//
+// Toast notifications appear for new messages and notifications
+// ========================================
 
 // Global variables
 let allGigs = [];
@@ -40,11 +51,31 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load conversations for messages dropdown
     if (document.getElementById('conversations-list')) {
         loadConversations();
+        // Auto-refresh conversations every 5 seconds for real-time messages
+        setInterval(() => {
+            loadConversations();
+        }, 5000);
     }
     
     // Load notifications
     if (document.getElementById('notifications-list')) {
         loadNotifications();
+        // Auto-refresh notifications every 5 seconds for real-time updates
+        setInterval(() => {
+            loadNotifications();
+        }, 5000);
+    }
+    
+    // Auto-refresh gigs on home page every 10 seconds for new gigs
+    if (window.location.pathname === '/' || window.location.pathname === '/home/') {
+        setInterval(() => {
+            const currentSearch = document.getElementById('search-input')?.value || '';
+            const currentCategory = document.getElementById('category-filter')?.value || '';
+            if (!currentSearch && !currentCategory) {
+                // Only auto-refresh if not filtering to avoid disrupting user's view
+                loadGigsForSearch();
+            }
+        }, 10000);
     }
     
     // Set up event listeners
@@ -56,6 +87,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.querySelector('#buyer-section')) {
         loadBuyerOrders();
         loadSellerOrders();
+        // Auto-refresh orders every 10 seconds for real-time updates
+        setInterval(() => {
+            loadBuyerOrders();
+            loadSellerOrders();
+        }, 10000);
     }
     
     // Handle anchor scroll on page load
@@ -1044,6 +1080,7 @@ function viewGig(gigId) {
 
 // Load conversations for messages dropdown
 let currentMessageOrderId = null;
+let previousUnreadMessages = 0;
 
 async function loadConversations() {
     const container = document.getElementById('conversations-list');
@@ -1052,6 +1089,16 @@ async function loadConversations() {
     try {
         const response = await fetch('/api/conversations/');
         const data = await response.json();
+        
+        // Check for new messages
+        const currentUnread = data.total_unread || 0;
+        if (previousUnreadMessages > 0 && currentUnread > previousUnreadMessages) {
+            const newMessages = currentUnread - previousUnreadMessages;
+            if (typeof showToast === 'function') {
+                showToast(`💬 ${newMessages} new message${newMessages > 1 ? 's' : ''}!`, 'info');
+            }
+        }
+        previousUnreadMessages = currentUnread;
         
         // Update badge
         if (data.total_unread > 0) {
@@ -1199,6 +1246,8 @@ async function sendMessageFromModal() {
 }
 
 // Load notifications
+let previousNotificationCount = 0;
+
 async function loadNotifications() {
     const container = document.getElementById('notifications-list');
     const badge = document.getElementById('notifications-badge');
@@ -1206,6 +1255,16 @@ async function loadNotifications() {
     try {
         const response = await fetch('/api/notifications/');
         const data = await response.json();
+        
+        // Check for new notifications
+        const currentCount = data.unread_count || 0;
+        if (previousNotificationCount > 0 && currentCount > previousNotificationCount) {
+            const newCount = currentCount - previousNotificationCount;
+            if (typeof showToast === 'function') {
+                showToast(`🔔 ${newCount} new notification${newCount > 1 ? 's' : ''}!`, 'info');
+            }
+        }
+        previousNotificationCount = currentCount;
         
         // Update badge
         if (data.unread_count > 0) {
@@ -1674,7 +1733,64 @@ async function loadCashoutHistory() {
     }
 }
 
+// ========================================
+// Show Toast Notification
+// ========================================
+function showToast(message, type = 'info') {
+    // Remove existing toast if any
+    const existingToast = document.getElementById('live-update-toast');
+    if (existingToast) {
+        existingToast.remove();
+    }
+    
+    // Create toast
+    const toast = document.createElement('div');
+    toast.id = 'live-update-toast';
+    toast.style.cssText = `
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: ${type === 'success' ? 'var(--gold)' : 'var(--deep-blue)'};
+        color: ${type === 'success' ? 'var(--deep-blue)' : 'white'};
+        padding: 15px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        z-index: 10000;
+        font-weight: 600;
+        animation: slideInUp 0.3s ease-out;
+    `;
+    toast.textContent = message;
+    
+    // Add CSS animation
+    if (!document.getElementById('toast-styles')) {
+        const style = document.createElement('style');
+        style.id = 'toast-styles';
+        style.textContent = `
+            @keyframes slideInUp {
+                from {
+                    transform: translateY(100%);
+                    opacity: 0;
+                }
+                to {
+                    transform: translateY(0);
+                    opacity: 1;
+                }
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    document.body.appendChild(toast);
+    
+    // Auto-remove after 3 seconds
+    setTimeout(() => {
+        toast.style.animation = 'slideInUp 0.3s ease-out reverse';
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
 // Expose functions to window
 window.showCashoutHistoryModal = showCashoutHistoryModal;
 window.closeCashoutHistoryModal = closeCashoutHistoryModal;
 window.loadCashoutHistory = loadCashoutHistory;
+window.showToast = showToast;
