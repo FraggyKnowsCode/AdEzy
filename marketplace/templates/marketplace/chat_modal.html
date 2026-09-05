@@ -1,0 +1,158 @@
+<!-- WhatsApp-style Messenger Modal -->
+<div class="whatsapp-modal-backdrop" id="whatsapp-modal" style="display: none;" onclick="if(event.target === this) toggleChatApp()">
+    <div class="whatsapp-app-container">
+        
+        <!-- Left Sidebar: Conversations & Contacts -->
+        <div class="whatsapp-sidebar" id="whatsapp-sidebar">
+            <div class="whatsapp-sidebar-header">
+                <div class="sidebar-user-meta">
+                    <div class="chat-avatar my-avatar">
+                        {% if user.is_authenticated %}
+                            {{ user.username|slice:":1"|upper }}
+                        {% else %}
+                            U
+                        {% endif %}
+                    </div>
+                    <div>
+                        <span class="sidebar-title">Chats</span>
+                        <div class="sidebar-user-status"><span class="online-dot"></span> Online</div>
+                    </div>
+                </div>
+                <div class="sidebar-header-actions">
+                    <button type="button" class="chat-header-action-btn" onclick="toggleNewChatPicker()" title="New Chat" aria-label="New Chat">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </button>
+                    <button type="button" class="chat-header-action-btn" onclick="toggleChatApp()" title="Close Messenger" aria-label="Close">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- New Chat Contacts Picker Tray -->
+            <div class="new-chat-picker-tray" id="new-chat-picker" style="display: none;">
+                <div class="picker-header">
+                    <span><i class="fa-solid fa-users text-gold"></i> Start a Conversation</span>
+                    <button onclick="toggleNewChatPicker()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div class="picker-search">
+                    <input type="text" id="contact-search-input" placeholder="Search creators or sellers..." oninput="filterContactList(this.value)">
+                </div>
+                <div class="picker-contacts-list" id="picker-contacts-list">
+                    <div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading creators...</div>
+                </div>
+            </div>
+
+            <!-- Search input -->
+            <div class="whatsapp-search-wrap">
+                <div class="chat-search-input-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="chat-search-input" placeholder="Search chats or messages..." oninput="filterChatList(this.value)">
+                </div>
+            </div>
+
+            <!-- Filter Tabs -->
+            <div class="chat-filter-tabs">
+                <button class="chat-tab-pill active" onclick="switchChatTab('all', this)">All</button>
+                <button class="chat-tab-pill" onclick="switchChatTab('unread', this)">Unread</button>
+                <button class="chat-tab-pill" onclick="switchChatTab('orders', this)">Orders</button>
+            </div>
+
+            <!-- Conversation List -->
+            <div class="whatsapp-conversations-list" id="whatsapp-conversations-list">
+                <div class="chat-empty-state">
+                    <i class="fa-solid fa-spinner fa-spin text-gold"></i>
+                    <p>Loading conversations...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Right Pane: Chat Window -->
+        <div class="whatsapp-chat-panel" id="whatsapp-chat-panel">
+            <!-- Blank / Default Screen -->
+            <div class="whatsapp-chat-empty" id="whatsapp-chat-empty">
+                <div class="whatsapp-empty-graphic">
+                    <div class="whatsapp-glow-circle">
+                        <i class="fa-solid fa-comments"></i>
+                    </div>
+                </div>
+                <h3>AdEzy Messenger</h3>
+                <p>Send and receive messages, project specs, and attachments with clients and creators in real time.</p>
+                <div class="encryption-note">
+                    <i class="fa-solid fa-shield-halved text-gold"></i> Fast, secure &amp; direct communication
+                </div>
+            </div>
+
+            <!-- Active Chat Conversation Screen -->
+            <div class="whatsapp-active-chat" id="whatsapp-active-chat" style="display: none;">
+                <!-- Chat Top Header -->
+                <div class="chat-top-header">
+                    <div class="chat-contact-info">
+                        <button class="mobile-back-btn" onclick="mobileBackToChatList()" title="Back to list">
+                            <i class="fa-solid fa-arrow-left"></i>
+                        </button>
+                        <div class="chat-avatar" id="active-chat-avatar">C</div>
+                        <div class="chat-contact-meta">
+                            <h4 id="active-chat-name">Creator</h4>
+                            <div class="chat-status-line">
+                                <span class="online-dot"></span>
+                                <span id="active-chat-sub">Online</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="chat-header-actions">
+                        <span class="order-context-pill" id="active-order-pill" style="display: none;">Order #1</span>
+                        <button type="button" class="chat-header-action-btn" onclick="focusChatSearch()" title="Search in chat" aria-label="Search">
+                            <i class="fa-solid fa-magnifying-glass"></i>
+                        </button>
+                        <button type="button" class="chat-header-action-btn" onclick="toggleChatApp()" title="Close chat" aria-label="Close">
+                            <i class="fa-solid fa-xmark"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Messages Stream Flow -->
+                <div class="chat-messages-flow" id="chat-messages-flow">
+                    <!-- Dynamic chat bubbles -->
+                </div>
+
+                <!-- Attachment Preview Tray -->
+                <div class="chat-attachment-preview-bar" id="chat-attachment-preview" style="display: none;">
+                    <div class="attachment-thumb" id="attachment-thumb-preview">
+                        <i class="fa-solid fa-paperclip"></i>
+                    </div>
+                    <div class="attachment-meta">
+                        <span class="attachment-name" id="attachment-name-label">filename.png</span>
+                        <span class="attachment-size" id="attachment-size-label">1.2 MB</span>
+                    </div>
+                    <button type="button" class="remove-attachment-btn" onclick="clearSelectedAttachment()" title="Remove file">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <!-- Chat Input Bar -->
+                <form class="chat-input-bar" id="chat-send-form" onsubmit="handleSendChatMessage(event)">
+                    <!-- Hidden File Input -->
+                    <input type="file" id="chat-file-input" style="display: none;" onchange="handleChatFileSelected(this)" accept="image/*,.pdf,.doc,.docx,.zip,.txt,.xlsx,.csv">
+                    
+                    <button type="button" class="chat-tool-btn" onclick="triggerAttachmentSelect()" title="Attach file (Images, PDF, Documents, ZIP)">
+                        <i class="fa-solid fa-paperclip"></i>
+                    </button>
+
+                    <div class="chat-input-wrapper">
+                        <textarea id="chat-text-input" placeholder="Type a message..." rows="1" onkeydown="handleChatInputKey(event)" oninput="autoResizeChatInput(this)"></textarea>
+                    </div>
+
+                    <button type="submit" class="chat-send-btn" id="chat-send-btn" title="Send message">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Image Zoom Lightbox Modal -->
+<div id="chat-image-lightbox" class="chat-image-lightbox" style="display: none;" onclick="this.style.display='none'">
+    <span class="lightbox-close"><i class="fa-solid fa-xmark"></i></span>
+    <img id="lightbox-img" src="" alt="Enlarged preview">
+</div>

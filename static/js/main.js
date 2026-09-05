@@ -20,6 +20,11 @@ let lastScrollY = window.scrollY;
 let displayedGigsCount = 0;
 const GIGS_PER_PAGE = 15;
 
+// Helper: Check if tab is hidden/inactive to pause background polling
+function isPageHidden() {
+    return document.hidden || document.visibilityState === 'hidden';
+}
+
 // ========================================
 // Show More Gigs Function
 // ========================================
@@ -37,45 +42,34 @@ document.addEventListener('DOMContentLoaded', () => {
     loadGigsForSearch(); // Always load gigs for search functionality
     loadUserBalance();
     loadSellerEarnings();
+    updateCartBadge();
     
-    // Auto-refresh balance every 10 seconds to catch admin approvals
+    // Auto-refresh balance every 30 seconds when active
     setInterval(() => {
-        loadUserBalance();
-    }, 10000); // 10 seconds
+        if (!isPageHidden()) {
+            loadUserBalance();
+        }
+    }, 30000);
     
     // Load seller's gigs if on dashboard
     if (document.getElementById('my-gigs-container')) {
         loadMyGigs();
     }
     
-    // Load conversations for messages dropdown
+    // Initial load for messages dropdown (unified polling managed by ensureChatPollerStarted)
     if (document.getElementById('conversations-list')) {
-        loadConversations();
-        // Auto-refresh conversations every 5 seconds for real-time messages
-        setInterval(() => {
-            loadConversations();
-        }, 5000);
+        loadChatConversations(true);
     }
     
     // Load notifications
     if (document.getElementById('notifications-list')) {
         loadNotifications();
-        // Auto-refresh notifications every 5 seconds for real-time updates
+        // Auto-refresh notifications every 20 seconds when active
         setInterval(() => {
-            loadNotifications();
-        }, 5000);
-    }
-    
-    // Auto-refresh gigs on home page every 10 seconds for new gigs
-    if (window.location.pathname === '/' || window.location.pathname === '/home/') {
-        setInterval(() => {
-            const currentSearch = document.getElementById('search-input')?.value || '';
-            const currentCategory = document.getElementById('category-filter')?.value || '';
-            if (!currentSearch && !currentCategory) {
-                // Only auto-refresh if not filtering to avoid disrupting user's view
-                loadGigsForSearch();
+            if (!isPageHidden()) {
+                loadNotifications();
             }
-        }, 10000);
+        }, 20000);
     }
     
     // Set up event listeners
@@ -87,11 +81,13 @@ document.addEventListener('DOMContentLoaded', () => {
     if (document.querySelector('#buyer-section')) {
         loadBuyerOrders();
         loadSellerOrders();
-        // Auto-refresh orders every 10 seconds for real-time updates
+        // Auto-refresh orders every 25 seconds when tab active
         setInterval(() => {
-            loadBuyerOrders();
-            loadSellerOrders();
-        }, 10000);
+            if (!isPageHidden()) {
+                loadBuyerOrders();
+                loadSellerOrders();
+            }
+        }, 25000);
     }
     
     // Handle anchor scroll on page load
@@ -213,7 +209,7 @@ async function loadGigs() {
         console.error('Error loading gigs:', error);
         container.innerHTML = `
             <div class="empty-state">
-                <h3>⚠️ Error Loading Gigs</h3>
+                <h3><i class="fa-solid fa-triangle-exclamation"></i> Error Loading Gigs</h3>
                 <p>Please try again later.</p>
             </div>
         `;
@@ -303,7 +299,7 @@ function renderGigs(gigs, append = false) {
             const ratingDiv = document.createElement('div');
             ratingDiv.className = 'gig-card-rating';
             ratingDiv.innerHTML = `
-                <span class="rating-stars">⭐ ${gig.rating.toFixed(1)}</span>
+                <span class="rating-stars"><i class="fa-solid fa-star text-gold"></i> ${gig.rating.toFixed(1)}</span>
                 <span class="rating-reviews">(${gig.total_reviews} reviews)</span>
             `;
             content.appendChild(ratingDiv);
@@ -326,9 +322,24 @@ function renderGigs(gigs, append = false) {
         // Create price
         const price = document.createElement('div');
         price.className = 'gig-card-price';
-        price.textContent = `${gig.price} Taka`;
+        price.textContent = `${gig.price} ৳`;
         
-        // Create view details button
+        // Create actions group with Add to Cart + View Details
+        const actionsGroup = document.createElement('div');
+        actionsGroup.className = 'gig-actions-group';
+        actionsGroup.style.display = 'flex';
+        actionsGroup.style.gap = '8px';
+        actionsGroup.style.alignItems = 'center';
+
+        const cartButton = document.createElement('button');
+        cartButton.className = 'btn-card-cart';
+        cartButton.title = 'Add Service to Cart';
+        cartButton.innerHTML = '<i class="fa-solid fa-cart-plus"></i>';
+        cartButton.onclick = (e) => {
+            e.stopPropagation();
+            addServiceToCart(gig.id, gig.title, gig.price, gig.seller_name, gig.delivery_time);
+        };
+
         const orderButton = document.createElement('button');
         orderButton.className = 'btn-order';
         orderButton.textContent = 'View Details';
@@ -336,10 +347,13 @@ function renderGigs(gigs, append = false) {
             e.stopPropagation();
             window.location.href = '/gig/' + gig.id + '/';
         };
-        
+
+        actionsGroup.appendChild(cartButton);
+        actionsGroup.appendChild(orderButton);
+
         // Append to footer
         footer.appendChild(price);
-        footer.appendChild(orderButton);
+        footer.appendChild(actionsGroup);
         
         // Make card clickable
         card.style.cursor = 'pointer';
@@ -418,7 +432,7 @@ function setupSearchListener() {
                         <h4 class="search-suggestion-title">${gig.title}</h4>
                         <div class="search-suggestion-meta">
                             <span class="search-suggestion-category">${gig.category} • by ${gig.seller_name}</span>
-                            <span class="search-suggestion-price">${gig.price} Taka</span>
+                            <span class="search-suggestion-price">${gig.price} ৳</span>
                         </div>
                     </div>
                 </div>
@@ -577,28 +591,169 @@ async function handleOrder(gigId) {
     const modalContent = document.querySelector('#modal-content');
     
     if (!modal || !modalContent) {
-        alert('Modal not found. Please refresh the page.');
+        alert('Order modal not found. Please refresh the page.');
         return;
     }
     
     // Show modal
     modal.classList.remove('hidden');
-    
-    // Show loading spinner
     modalContent.innerHTML = `
-        <h3>Processing Your Order...</h3>
-        <div class="spinner"></div>
-        <p>Please wait while we process your order.</p>
+        <div class="order-confirm-dialog" style="text-align: center; padding: 48px 24px;">
+            <div style="font-size: 2.5rem; color: var(--gold); margin-bottom: 16px;">
+                <i class="fa-solid fa-spinner fa-spin"></i>
+            </div>
+            <h3 style="color: var(--text-primary); font-size: 1.2rem; font-weight: 600;">Loading Service Details...</h3>
+        </div>
     `;
     
-    // Simulate network delay (2 seconds)
-    await new Promise(resolve => setTimeout(resolve, 2000));
-    
     try {
-        // Get CSRF token
-        const csrftoken = getCookie('csrftoken');
+        // Fetch gig info and balance concurrently
+        const [gigRes, balanceRes] = await Promise.all([
+            fetch(`/api/gigs/${gigId}/`),
+            fetch('/api/user/balance/')
+        ]);
+
+        // Check if user needs to log in
+        if (balanceRes.status === 401 || balanceRes.redirected || balanceRes.url.includes('/login')) {
+            modalContent.innerHTML = `
+                <div class="order-confirm-dialog">
+                    <div class="order-dialog-header">
+                        <h3><i class="fa-solid fa-lock" style="color: var(--gold);"></i> Sign In Required</h3>
+                        <button class="order-dialog-close" onclick="closeModal()" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div style="text-align: center; padding: 24px 0;">
+                        <div style="font-size: 3rem; color: var(--gold); margin-bottom: 14px;">
+                            <i class="fa-solid fa-circle-user"></i>
+                        </div>
+                        <p style="color: var(--text-secondary); font-size: 1rem; line-height: 1.6; margin-bottom: 24px;">
+                            Please log in or create an account to place an order.<br>
+                            <strong style="color: var(--gold);">Every new user receives 5,000 ৳ welcome credits!</strong>
+                        </p>
+                        <div class="order-dialog-actions" style="justify-content: center; gap: 14px;">
+                            <a href="/login/?next=/gig/${gigId}/" class="btn btn-primary" style="padding: 12px 28px;">
+                                <i class="fa-solid fa-right-to-bracket"></i> Log In
+                            </a>
+                            <a href="/register/" class="btn btn-secondary" style="padding: 12px 28px;">
+                                <i class="fa-solid fa-user-plus"></i> Sign Up (Free 5,000 ৳)
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            `;
+            return;
+        }
+
+        if (!gigRes.ok) {
+            throw new Error('Service details could not be retrieved');
+        }
+
+        const gig = await gigRes.json();
+        let balanceData = { balance: 5000.00 };
+        if (balanceRes.ok) {
+            balanceData = await balanceRes.json();
+            updateBalanceDisplay(balanceData.balance);
+        }
+
+        const currentBalance = balanceData.balance;
+        const gigPrice = parseFloat(gig.price);
+        const hasEnough = currentBalance >= gigPrice;
+        const remaining = currentBalance - gigPrice;
+
+        modalContent.innerHTML = `
+            <div class="order-confirm-dialog">
+                <div class="order-dialog-header">
+                    <h3>Confirm Your Order</h3>
+                    <button class="order-dialog-close" onclick="closeModal()" aria-label="Close">
+                        <i class="fa-solid fa-xmark"></i>
+                    </button>
+                </div>
+
+                <div class="order-gig-card">
+                    <img src="${gig.image_url}" alt="${gig.title}" class="order-gig-thumb" onerror="this.src='/static/images/default-gig.jpg'">
+                    <div class="order-gig-details">
+                        <h4>${gig.title}</h4>
+                        <p class="order-seller-name"><i class="fa-solid fa-user-check"></i> Seller: <strong>${gig.seller_name}</strong></p>
+                        <span class="order-delivery-tag"><i class="fa-regular fa-clock"></i> ${gig.delivery_time} Days Delivery</span>
+                    </div>
+                </div>
+
+                <div class="order-pricing-summary">
+                    <div class="pricing-line">
+                        <span>Service Cost:</span>
+                        <strong style="color: var(--text-primary); font-size: 1.05rem;">${gigPrice.toFixed(2)} ৳</strong>
+                    </div>
+                    <div class="pricing-line">
+                        <span>Your Current Balance:</span>
+                        <span class="balance-now">${currentBalance.toFixed(2)} ৳</span>
+                    </div>
+                    <div class="pricing-divider"></div>
+                    <div class="pricing-line total-line">
+                        <span>Balance After Order:</span>
+                        <strong class="${hasEnough ? 'balance-after' : 'balance-short'}">
+                            ${remaining.toFixed(2)} ৳
+                        </strong>
+                    </div>
+                </div>
+
+                ${!hasEnough ? `
+                    <div class="order-insufficient-alert">
+                        <i class="fa-solid fa-circle-exclamation"></i>
+                        <div>
+                            <strong>Insufficient Balance:</strong> You need <strong>${(gigPrice - currentBalance).toFixed(2)} ৳</strong> more to place this order.
+                        </div>
+                    </div>
+                    <div class="order-dialog-actions">
+                        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                        <button class="btn btn-primary" onclick="closeModal(); if(window.showBalanceRequestModal) window.showBalanceRequestModal();">
+                            <i class="fa-solid fa-wallet"></i> Request Balance
+                        </button>
+                    </div>
+                ` : `
+                    <div class="order-req-field">
+                        <label for="order-requirements-input">
+                            <i class="fa-solid fa-pen-to-square"></i> Order Instructions & Requirements (Optional):
+                        </label>
+                        <textarea id="order-requirements-input" placeholder="Provide any details, files, or guidelines for the seller..." rows="3"></textarea>
+                    </div>
+                    <div class="order-dialog-actions">
+                        <button class="btn btn-secondary" onclick="closeModal()">Cancel</button>
+                        <button class="btn btn-primary" id="confirm-order-btn" onclick="submitConfirmedOrder(${gig.id}, ${gigPrice})">
+                            <i class="fa-solid fa-check"></i> Confirm & Place Order (${gigPrice.toFixed(2)} ৳)
+                        </button>
+                    </div>
+                `}
+            </div>
+        `;
         
-        // Send POST request to Django
+    } catch (error) {
+        console.error('Error opening order dialog:', error);
+        modalContent.innerHTML = `
+            <div class="order-confirm-dialog">
+                <div class="order-dialog-header">
+                    <h3>Service Error</h3>
+                    <button class="order-dialog-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+                </div>
+                <div style="padding: 24px; text-align: center;">
+                    <p style="color: var(--text-secondary); margin-bottom: 20px;">Could not load service details. Please try again.</p>
+                    <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+                </div>
+            </div>
+        `;
+    }
+}
+
+async function submitConfirmedOrder(gigId, price) {
+    const btn = document.getElementById('confirm-order-btn');
+    const reqInput = document.getElementById('order-requirements-input');
+    const requirements = reqInput ? reqInput.value.trim() : '';
+
+    if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Processing Order...`;
+    }
+
+    try {
+        const csrftoken = getCookie('csrftoken');
         const response = await fetch('/api/orders/create/', {
             method: 'POST',
             headers: {
@@ -607,43 +762,84 @@ async function handleOrder(gigId) {
             },
             body: JSON.stringify({
                 gig_id: gigId,
-                requirements: ''
+                requirements: requirements
             })
         });
-        
+
         const data = await response.json();
-        
+        const modalContent = document.querySelector('#modal-content');
+
         if (data.success) {
-            // Show success checkmark animation
-            modalContent.innerHTML = `
-                <h3>Order Placed Successfully!</h3>
-                <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
-                    <circle class="checkmark-circle" cx="26" cy="26" r="25" fill="none"/>
-                    <path class="checkmark-check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
-                </svg>
-                <p>Your order has been placed. Check your dashboard for updates.</p>
-                <button class="btn btn-primary" onclick="closeModal()">Continue Shopping</button>
-            `;
-            
-            // Update user balance in navbar
             updateBalanceDisplay(data.new_balance);
-            
-        } else {
-            // Show error message
+
             modalContent.innerHTML = `
-                <h3>Order Failed</h3>
-                <p>${data.error}</p>
-                <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+                <div class="order-success-dialog">
+                    <div class="success-icon-wrap">
+                        <i class="fa-solid fa-circle-check"></i>
+                    </div>
+                    <h3>Order Placed Successfully!</h3>
+                    <p class="success-sub">
+                        Order <strong>#${data.order_id}</strong> is confirmed. The seller has been notified and will begin working on your request.
+                    </p>
+                    
+                    <div class="success-summary-box">
+                        <div class="pricing-line">
+                            <span>Amount Paid:</span>
+                            <strong style="color: var(--gold); font-size: 1.1rem;">${price.toFixed(2)} ৳</strong>
+                        </div>
+                        <div class="pricing-line">
+                            <span>Remaining Balance:</span>
+                            <strong class="balance-after" style="font-size: 1.1rem;">${data.new_balance.toFixed(2)} ৳</strong>
+                        </div>
+                    </div>
+
+                    <div class="success-dialog-actions">
+                        <a href="/dashboard/" class="btn btn-primary">
+                            <i class="fa-solid fa-gauge-high"></i> View in Dashboard
+                        </a>
+                        <button class="btn btn-secondary" onclick="closeModal()">
+                            Continue Shopping
+                        </button>
+                    </div>
+                </div>
+            `;
+            if (typeof showToast === 'function') {
+                showToast('Order placed successfully!', 'success');
+            }
+        } else {
+            modalContent.innerHTML = `
+                <div class="order-confirm-dialog">
+                    <div class="order-dialog-header">
+                        <h3>Order Failed</h3>
+                        <button class="order-dialog-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div style="padding: 24px; text-align: center;">
+                        <div style="font-size: 2.5rem; color: #ef4444; margin-bottom: 12px;">
+                            <i class="fa-solid fa-triangle-exclamation"></i>
+                        </div>
+                        <p style="color: var(--text-secondary); margin-bottom: 24px;">${data.error || 'Failed to process order.'}</p>
+                        <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+                    </div>
+                </div>
             `;
         }
-        
-    } catch (error) {
-        console.error('Error creating order:', error);
-        modalContent.innerHTML = `
-            <h3>Something Went Wrong</h3>
-            <p>Unable to process your order. Please try again.</p>
-            <button class="btn btn-secondary" onclick="closeModal()">Close</button>
-        `;
+    } catch (err) {
+        console.error('Order submission error:', err);
+        const modalContent = document.querySelector('#modal-content');
+        if (modalContent) {
+            modalContent.innerHTML = `
+                <div class="order-confirm-dialog">
+                    <div class="order-dialog-header">
+                        <h3>Order Error</h3>
+                        <button class="order-dialog-close" onclick="closeModal()"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div style="padding: 24px; text-align: center;">
+                        <p style="color: var(--text-secondary); margin-bottom: 24px;">Network or server error while placing order. Please try again.</p>
+                        <button class="btn btn-secondary" onclick="closeModal()">Close</button>
+                    </div>
+                </div>
+            `;
+        }
     }
 }
 
@@ -653,6 +849,51 @@ function closeModal() {
         modal.classList.add('hidden');
     }
 }
+
+function handleModalBackdropClick(e) {
+    if (e.target && e.target.id === 'order-modal') {
+        closeModal();
+    }
+}
+
+// Global User Dropdown toggle
+function toggleUserDropdown(event) {
+    if (event) event.stopPropagation();
+    const menu = document.getElementById('user-dropdown-menu');
+    if (menu) {
+        const isShown = menu.classList.contains('show') || menu.style.display === 'flex';
+        if (isShown) {
+            menu.classList.remove('show');
+            menu.style.display = 'none';
+        } else {
+            menu.classList.add('show');
+            menu.style.display = 'flex';
+        }
+    }
+}
+
+// Global Search Overlay toggle
+function toggleSearchOverlay() {
+    const overlay = document.getElementById('search-overlay');
+    if (overlay) {
+        const isHidden = overlay.style.display === 'none' || overlay.style.display === '';
+        overlay.style.display = isHidden ? 'flex' : 'none';
+        if (isHidden) {
+            const input = document.getElementById('search-input');
+            if (input) input.focus();
+        }
+    }
+}
+
+// Close dropdowns on outside click
+document.addEventListener('click', (e) => {
+    const menu = document.getElementById('user-dropdown-menu');
+    if (menu && !e.target.closest('.user-menu-wrapper')) {
+        menu.classList.remove('show');
+        menu.style.display = 'none';
+    }
+});
+
 
 // ========================================
 // User Balance Management
@@ -664,6 +905,9 @@ async function loadUserBalance() {
         if (response.ok) {
             const data = await response.json();
             updateBalanceDisplay(data.balance);
+            if (data.earnings !== undefined) {
+                updateEarningsDisplay(data.earnings);
+            }
         }
     } catch (error) {
         console.error('Error loading balance:', error);
@@ -671,30 +915,36 @@ async function loadUserBalance() {
 }
 
 function updateBalanceDisplay(balance) {
+    if (typeof balance !== 'number') {
+        balance = parseFloat(balance) || 0;
+    }
+    const formatted = balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    
     const balanceElement = document.querySelector('#user-balance');
     const balanceDropdown = document.querySelector('#user-balance-dropdown');
-    
-    console.log('Updating balance display:', balance);
+    const balanceHeader = document.querySelector('#user-balance-header');
     
     if (balanceElement) {
-        balanceElement.textContent = balance.toFixed(2);
-        
-        // Add a brief animation
-        balanceElement.style.transform = 'scale(1.2)';
-        balanceElement.style.color = 'var(--gold)';
-        
-        setTimeout(() => {
-            balanceElement.style.transform = 'scale(1)';
-        }, 300);
+        balanceElement.textContent = formatted;
     }
-
-    // Update balance in profile dropdown
     if (balanceDropdown) {
-        balanceDropdown.textContent = balance.toFixed(2);
-        console.log('Dropdown balance updated to:', balance.toFixed(2));
-    } else {
-        console.warn('Balance dropdown element not found');
+        balanceDropdown.textContent = formatted;
     }
+    if (balanceHeader) {
+        balanceHeader.textContent = formatted;
+    }
+}
+
+function updateEarningsDisplay(earnings) {
+    if (typeof earnings !== 'number') {
+        earnings = parseFloat(earnings) || 0;
+    }
+    const formatted = earnings.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    
+    const earningsElements = document.querySelectorAll('#user-earnings, #user-earnings-header, #header-user-earnings');
+    earningsElements.forEach(el => {
+        el.textContent = formatted;
+    });
 }
 
 // ========================================
@@ -799,7 +1049,7 @@ async function loadGigsWithFilter(filter) {
         console.error('Error loading gigs:', error);
         container.innerHTML = `
             <div class="empty-state">
-                <h3>⚠️ Error Loading Gigs</h3>
+                <h3><i class="fa-solid fa-triangle-exclamation"></i> Error Loading Gigs</h3>
                 <p>Please try again later.</p>
             </div>
         `;
@@ -843,7 +1093,7 @@ async function loadBuyerOrders() {
             orderCard.innerHTML = `
                 <h4>${order.gig_title}</h4>
                 <p>Seller: ${order.seller_name}</p>
-                <p>Price: ${order.price} Taka</p>
+                <p>Price: ${order.price} ৳</p>
                 <p>Status: <span class="badge-${order.status}">${order.status}</span></p>
                 <p>Ordered: ${new Date(order.created_at).toLocaleDateString()}</p>
                 <a href="/order/${order.id}/" class="btn btn-primary" style="margin-top: 10px; display: inline-block;">View Details & Messages</a>
@@ -894,7 +1144,7 @@ async function loadSellerOrders() {
             orderCard.innerHTML = `
                 <h4>${order.gig_title}</h4>
                 <p>Buyer: ${order.buyer_name}</p>
-                <p>Price: ${order.price} Taka</p>
+                <p>Price: ${order.price} ৳</p>
                 <p>Status: <span class="badge-${order.status}">${order.status}</span></p>
                 <p>Requirements: ${order.requirements || 'None'}</p>
                 <p>Ordered: ${new Date(order.created_at).toLocaleDateString()}</p>
@@ -939,11 +1189,9 @@ async function loadSellerEarnings() {
         if (response.ok) {
             const data = await response.json();
             
-            // Update total earnings in profile dropdown
-            const earningsElement = document.querySelector('#user-earnings');
-            if (earningsElement) {
-                earningsElement.textContent = data.total_earnings.toFixed(2);
-            }
+            // Update total / available earnings in profile dropdown
+            const earningsVal = data.available_earnings !== undefined ? data.available_earnings : data.total_earnings;
+            updateEarningsDisplay(earningsVal);
         }
     } catch (error) {
         console.error('Error loading earnings:', error);
@@ -961,7 +1209,7 @@ async function showEarningsModal(event) {
         const data = await response.json();
         
         // Update summary
-        document.querySelector('#total-earnings').textContent = data.total_earnings.toFixed(2) + ' Taka';
+        document.querySelector('#total-earnings').textContent = data.total_earnings.toFixed(2) + ' ৳';
         document.querySelector('#total-orders').textContent = data.total_orders;
         
         // Render earnings by gig
@@ -975,7 +1223,7 @@ async function showEarningsModal(event) {
                         <div class="earnings-item-title">${item.gig_title}</div>
                         <div class="earnings-item-details">${item.orders_count} orders completed</div>
                     </div>
-                    <div class="earnings-item-amount">${item.total_earned.toFixed(2)} Taka</div>
+                    <div class="earnings-item-amount">${item.total_earned.toFixed(2)} ৳</div>
                 </div>
             `).join('');
         }
@@ -991,7 +1239,7 @@ async function showEarningsModal(event) {
                         <div class="earnings-item-title">${item.gig_title}</div>
                         <div class="earnings-item-details">Order #${item.order_id} • ${item.buyer} • ${item.completed_at}</div>
                     </div>
-                    <div class="earnings-item-amount">+${item.amount.toFixed(2)} Taka</div>
+                    <div class="earnings-item-amount">+${item.amount.toFixed(2)} ৳</div>
                 </div>
             `).join('');
         }
@@ -1017,28 +1265,28 @@ async function loadMyGigs() {
             container.innerHTML = `
                 <div class="gigs-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px;">
                     ${data.gigs.map(gig => `
-                        <div class="gig-card" style="background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.1); transition: transform 0.3s;">
+                        <div class="gig-card" style="background: #161d2d; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; overflow: hidden; box-shadow: 0 4px 15px rgba(0,0,0,0.3); transition: transform 0.3s;">
                             <img src="${gig.image_url}" alt="${gig.title}" style="width: 100%; height: 180px; object-fit: cover;">
                             <div style="padding: 15px;">
                                 <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 10px;">
                                     <span style="display: inline-block; padding: 4px 10px; background: ${gig.status === 'active' ? '#10b981' : '#6b7280'}; color: white; border-radius: 12px; font-size: 0.8rem; text-transform: capitalize;">
                                         ${gig.status}
                                     </span>
-                                    <span style="color: #64748b; font-size: 0.85rem;">${gig.created_at}</span>
+                                    <span style="color: #94a3b8; font-size: 0.85rem;">${gig.created_at}</span>
                                 </div>
-                                <h3 style="font-size: 1rem; margin: 10px 0; color: var(--deep-blue);">${gig.title}</h3>
-                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+                                <h3 style="font-size: 1.05rem; margin: 10px 0; color: #ffffff; font-weight: 600;">${gig.title}</h3>
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(255, 255, 255, 0.08);">
                                     <div>
-                                        <p style="color: #64748b; font-size: 0.85rem; margin-bottom: 4px;">${gig.category}</p>
-                                        <p style="color: var(--gold); font-weight: bold; font-size: 1.1rem;">${gig.price} Taka</p>
+                                        <p style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 4px;">${gig.category}</p>
+                                        <p style="color: var(--gold); font-weight: bold; font-size: 1.1rem;">${gig.price} ৳</p>
                                     </div>
                                     <div style="text-align: right;">
-                                        <p style="color: #64748b; font-size: 0.85rem;">
+                                        <p style="color: #94a3b8; font-size: 0.85rem;">
                                             <i class="fas fa-clock"></i> ${gig.delivery_time} days
                                         </p>
                                     </div>
                                 </div>
-                                <div style="display: flex; gap: 8px; margin-top: 12px;">
+                                <div style="display: flex; gap: 8px; margin-top: 14px;">
                                     <button onclick="window.location.href='/update-gig/${gig.id}/'" class="btn btn-secondary" style="flex: 1; padding: 8px; font-size: 0.9rem;">
                                         <i class="fas fa-edit"></i> Edit
                                     </button>
@@ -1083,63 +1331,8 @@ let currentMessageOrderId = null;
 let previousUnreadMessages = 0;
 
 async function loadConversations() {
-    const container = document.getElementById('conversations-list');
-    const badge = document.getElementById('messages-badge');
-    
-    try {
-        const response = await fetch('/api/conversations/');
-        const data = await response.json();
-        
-        // Check for new messages
-        const currentUnread = data.total_unread || 0;
-        if (previousUnreadMessages > 0 && currentUnread > previousUnreadMessages) {
-            const newMessages = currentUnread - previousUnreadMessages;
-            if (typeof showToast === 'function') {
-                showToast(`💬 ${newMessages} new message${newMessages > 1 ? 's' : ''}!`, 'info');
-            }
-        }
-        previousUnreadMessages = currentUnread;
-        
-        // Update badge
-        if (data.total_unread > 0) {
-            badge.textContent = data.total_unread;
-            badge.style.display = 'block';
-        } else {
-            badge.style.display = 'none';
-        }
-        
-        if (data.conversations && data.conversations.length > 0) {
-            container.innerHTML = data.conversations.map(conv => {
-                const timeAgo = getTimeAgo(new Date(conv.last_message_time));
-                return `
-                    <div class="conversation-item ${conv.unread_count > 0 ? 'unread' : ''}" onclick="window.location.href='/order/${conv.order_id}/'">
-                        <div class="conversation-avatar">${conv.other_user.charAt(0).toUpperCase()}</div>
-                        <div class="conversation-content">
-                            <div class="conversation-header">
-                                <span class="conversation-user">${conv.other_user}</span>
-                                <span class="conversation-time">${timeAgo}</span>
-                            </div>
-                            <div class="conversation-gig">${conv.gig_title}</div>
-                            <div class="conversation-last-message">
-                                ${conv.last_message}
-                                ${conv.unread_count > 0 ? `<span class="conversation-unread">${conv.unread_count}</span>` : ''}
-                            </div>
-                        </div>
-                    </div>
-                `;
-            }).join('');
-        } else {
-            container.innerHTML = `
-                <div class="empty-conversations">
-                    <i class="fas fa-comments"></i>
-                    <p>No messages yet</p>
-                    <p style="font-size: 0.85rem;">Start a conversation by placing an order</p>
-                </div>
-            `;
-        }
-    } catch (error) {
-        console.error('Error loading conversations:', error);
-        container.innerHTML = '<div style="padding: 20px; text-align: center; color: #ef4444;">Error loading conversations</div>';
+    if (typeof loadChatConversations === 'function') {
+        return loadChatConversations(true);
     }
 }
 
@@ -1180,7 +1373,7 @@ async function loadMessagesForOrder(orderId) {
                 <div class="order-info-left">
                     <h3>${data.order_info.gig_title}</h3>
                     <p><strong>With:</strong> ${data.order_info.other_user}</p>
-                    <p><strong>Price:</strong> ${data.order_info.price} Taka</p>
+                    <p><strong>Price:</strong> ${data.order_info.price} ৳</p>
                 </div>
                 <span class="order-status-badge status-${data.order_info.status}">${data.order_info.status.replace('_', ' ')}</span>
             `;
@@ -1261,7 +1454,7 @@ async function loadNotifications() {
         if (previousNotificationCount > 0 && currentCount > previousNotificationCount) {
             const newCount = currentCount - previousNotificationCount;
             if (typeof showToast === 'function') {
-                showToast(`🔔 ${newCount} new notification${newCount > 1 ? 's' : ''}!`, 'info');
+                showToast(`${newCount} new notification${newCount > 1 ? 's' : ''}!`, 'info');
             }
         }
         previousNotificationCount = currentCount;
@@ -1307,18 +1500,17 @@ async function loadNotifications() {
     }
 }
 
-// Get notification icon based on type
 function getNotificationIcon(type) {
     const icons = {
-        'order_placed': '📦',
-        'order_accepted': '✅',
-        'order_delivered': '🚚',
-        'order_completed': '🎉',
-        'order_cancelled': '❌',
-        'message_received': '💬',
-        'review_received': '⭐'
+        'order_placed': '<i class="fa-solid fa-box"></i>',
+        'order_accepted': '<i class="fa-solid fa-check"></i>',
+        'order_delivered': '<i class="fa-solid fa-truck"></i>',
+        'order_completed': '<i class="fa-solid fa-circle-check"></i>',
+        'order_cancelled': '<i class="fa-solid fa-xmark"></i>',
+        'message_received': '<i class="fa-solid fa-comment-dots"></i>',
+        'review_received': '<i class="fa-solid fa-star text-gold"></i>'
     };
-    return icons[type] || '📢';
+    return icons[type] || '<i class="fa-solid fa-bullhorn"></i>';
 }
 
 // Handle notification click
@@ -1483,22 +1675,22 @@ async function loadBalanceRequests() {
         container.innerHTML = data.requests.map(req => {
             const statusColor = req.status === 'approved' ? '#10b981' : 
                               req.status === 'rejected' ? '#ef4444' : '#f59e0b';
-            const statusIcon = req.status === 'approved' ? '✓' : 
-                             req.status === 'rejected' ? '✗' : '⏳';
+            const statusIcon = req.status === 'approved' ? '<i class="fa-solid fa-check"></i>' : 
+                             req.status === 'rejected' ? '<i class="fa-solid fa-xmark"></i>' : '<i class="fa-solid fa-clock"></i>';
             
             return `
-                <div style="padding: 15px; margin-bottom: 10px; background: #f8fafc; border-radius: 8px; border-left: 4px solid ${statusColor};">
+                <div style="padding: 16px; margin-bottom: 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; border-left: 4px solid ${statusColor};">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <div style="font-weight: 600; color: var(--deep-blue);">
-                            ${req.amount} Taka
+                        <div style="font-weight: 700; color: #ffffff; font-size: 1.15rem;">
+                            ${req.amount} ৳
                         </div>
-                        <div style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">
+                        <div style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.82rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
                             ${statusIcon} ${req.status.toUpperCase()}
                         </div>
                     </div>
-                    ${req.note ? `<div style="color: #64748b; font-size: 0.9rem; margin-bottom: 8px;">${req.note}</div>` : ''}
-                    ${req.admin_note ? `<div style="color: #64748b; font-size: 0.85rem; font-style: italic; margin-bottom: 8px;">Admin: ${req.admin_note}</div>` : ''}
-                    <div style="color: #94a3b8; font-size: 0.85rem;">
+                    ${req.note ? `<div style="color: #cbd5e1; font-size: 0.9rem; margin-bottom: 8px;">${req.note}</div>` : ''}
+                    ${req.admin_note ? `<div style="color: #fbbf24; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 8px;">Admin: ${req.admin_note}</div>` : ''}
+                    <div style="color: #94a3b8; font-size: 0.82rem;">
                         ${req.created_at}
                     </div>
                 </div>
@@ -1547,9 +1739,9 @@ async function loadAvailableEarnings() {
         const response = await fetch('/api/available-earnings/');
         const data = await response.json();
         
-        document.getElementById('total-earnings-display').textContent = data.total_earnings.toFixed(2) + ' Taka';
-        document.getElementById('cashed-out-display').textContent = data.total_cashed_out.toFixed(2) + ' Taka';
-        document.getElementById('available-earnings-display').textContent = data.available_earnings.toFixed(2) + ' Taka';
+        document.getElementById('total-earnings-display').textContent = data.total_earnings.toFixed(2) + ' ৳';
+        document.getElementById('cashed-out-display').textContent = data.total_cashed_out.toFixed(2) + ' ৳';
+        document.getElementById('available-earnings-display').textContent = data.available_earnings.toFixed(2) + ' ৳';
         
         // Update max attribute on amount input
         const amountInput = document.getElementById('cashout-amount');
@@ -1615,25 +1807,25 @@ async function loadCashoutRequests() {
         container.innerHTML = data.requests.map(req => {
             const statusColor = req.status === 'approved' ? '#10b981' : 
                               req.status === 'rejected' ? '#ef4444' : '#f59e0b';
-            const statusIcon = req.status === 'approved' ? '✓' : 
-                             req.status === 'rejected' ? '✗' : '⏳';
+            const statusIcon = req.status === 'approved' ? '<i class="fa-solid fa-check"></i>' : 
+                             req.status === 'rejected' ? '<i class="fa-solid fa-xmark"></i>' : '<i class="fa-solid fa-clock"></i>';
             
             return `
-                <div style="padding: 15px; margin-bottom: 10px; background: #f8fafc; border-radius: 8px; border-left: 4px solid ${statusColor};">
+                <div style="padding: 16px; margin-bottom: 12px; background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 12px; border-left: 4px solid ${statusColor};">
                     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <div style="font-weight: 600; color: var(--deep-blue);">
-                            ${req.amount} Taka via ${req.payment_method}
+                        <div style="font-weight: 700; color: #ffffff; font-size: 1.15rem;">
+                            ${req.amount} ৳ <span style="font-size: 0.85rem; color: #94a3b8; font-weight: 500;">via ${req.payment_method}</span>
                         </div>
-                        <div style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">
+                        <div style="background: ${statusColor}; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.82rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
                             ${statusIcon} ${req.status.toUpperCase()}
                         </div>
                     </div>
-                    <div style="color: #64748b; font-size: 0.9rem; margin-bottom: 4px;">
-                        ${req.payment_details}
+                    <div style="color: #cbd5e1; font-size: 0.9rem; margin-bottom: 6px;">
+                        <i class="fa-solid fa-credit-card text-gold" style="font-size: 0.85rem; margin-right: 4px;"></i> ${req.payment_details}
                     </div>
-                    ${req.note ? `<div style="color: #64748b; font-size: 0.9rem; margin-bottom: 8px;">Note: ${req.note}</div>` : ''}
-                    ${req.admin_note ? `<div style="color: #64748b; font-size: 0.85rem; font-style: italic; margin-bottom: 8px;">Admin: ${req.admin_note}</div>` : ''}
-                    <div style="color: #94a3b8; font-size: 0.85rem;">
+                    ${req.note ? `<div style="color: #94a3b8; font-size: 0.85rem; margin-bottom: 8px;">Note: ${req.note}</div>` : ''}
+                    ${req.admin_note ? `<div style="color: #fbbf24; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.2); padding: 8px 12px; border-radius: 8px; font-size: 0.85rem; margin-bottom: 8px;">Admin: ${req.admin_note}</div>` : ''}
+                    <div style="color: #64748b; font-size: 0.82rem;">
                         ${req.created_at}
                     </div>
                 </div>
@@ -1678,9 +1870,9 @@ async function loadCashoutHistory() {
         const earningsResponse = await fetch('/api/available-earnings/');
         const earningsData = await earningsResponse.json();
         
-        document.getElementById('history-total-earnings').textContent = earningsData.total_earnings.toFixed(2) + ' Taka';
-        document.getElementById('history-cashed-out').textContent = earningsData.total_cashed_out.toFixed(2) + ' Taka';
-        document.getElementById('history-available').textContent = earningsData.available_earnings.toFixed(2) + ' Taka';
+        document.getElementById('history-total-earnings').textContent = earningsData.total_earnings.toFixed(2) + ' ৳';
+        document.getElementById('history-cashed-out').textContent = earningsData.total_cashed_out.toFixed(2) + ' ৳';
+        document.getElementById('history-available').textContent = earningsData.available_earnings.toFixed(2) + ' ৳';
         
         // Load approved cashout history
         const historyResponse = await fetch('/api/cashout-requests/');
@@ -1698,29 +1890,29 @@ async function loadCashoutHistory() {
         
         container.innerHTML = approvedRequests.map(req => {
             return `
-                <div style="padding: 15px; margin-bottom: 10px; background: #f0fdf4; border-radius: 8px; border-left: 4px solid #10b981;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
-                        <div style="font-weight: 600; color: var(--deep-blue); font-size: 1.1rem;">
-                            ${req.amount} Taka
+                <div style="padding: 16px; margin-bottom: 12px; background: rgba(16, 185, 129, 0.08); border: 1px solid rgba(16, 185, 129, 0.25); border-radius: 12px; border-left: 4px solid #10b981;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+                        <div style="font-weight: 700; color: #ffffff; font-size: 1.2rem;">
+                            ${req.amount} ৳
                         </div>
-                        <div style="background: #10b981; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.85rem; font-weight: 600;">
-                            ✓ PAID
-                        </div>
-                    </div>
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px;">
-                        <div>
-                            <div style="color: #64748b; font-size: 0.85rem;">Payment Method</div>
-                            <div style="color: var(--deep-blue); font-weight: 600;">${req.payment_method}</div>
-                        </div>
-                        <div>
-                            <div style="color: #64748b; font-size: 0.85rem;">Account</div>
-                            <div style="color: var(--deep-blue); font-weight: 600;">${req.payment_details}</div>
+                        <div style="background: #10b981; color: white; padding: 4px 12px; border-radius: 12px; font-size: 0.82rem; font-weight: 700; display: inline-flex; align-items: center; gap: 5px;">
+                            <i class="fa-solid fa-check"></i> PAID
                         </div>
                     </div>
-                    ${req.admin_note ? `<div style="color: #059669; font-size: 0.9rem; background: white; padding: 8px; border-radius: 4px; margin-bottom: 8px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
+                        <div>
+                            <div style="color: #94a3b8; font-size: 0.82rem; margin-bottom: 2px;">Payment Method</div>
+                            <div style="color: #f1f5f9; font-weight: 600;">${req.payment_method}</div>
+                        </div>
+                        <div>
+                            <div style="color: #94a3b8; font-size: 0.82rem; margin-bottom: 2px;">Account</div>
+                            <div style="color: #f1f5f9; font-weight: 600;">${req.payment_details}</div>
+                        </div>
+                    </div>
+                    ${req.admin_note ? `<div style="color: #34d399; font-size: 0.88rem; background: rgba(16, 185, 129, 0.12); border: 1px solid rgba(16, 185, 129, 0.2); padding: 8px 12px; border-radius: 6px; margin-bottom: 8px;">
                         <strong>Admin:</strong> ${req.admin_note}
                     </div>` : ''}
-                    <div style="color: #94a3b8; font-size: 0.85rem;">
+                    <div style="color: #64748b; font-size: 0.82rem;">
                         Processed on ${req.updated_at}
                     </div>
                 </div>
@@ -1794,3 +1986,1167 @@ window.showCashoutHistoryModal = showCashoutHistoryModal;
 window.closeCashoutHistoryModal = closeCashoutHistoryModal;
 window.loadCashoutHistory = loadCashoutHistory;
 window.showToast = showToast;
+
+// ========================================
+// Global Unified Cart System (Services & Products)
+// ========================================
+const CART_STORAGE_KEY = 'adezy_unified_cart_v1';
+
+function getStoredCart() {
+    try {
+        const raw = localStorage.getItem(CART_STORAGE_KEY);
+        return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+        console.error('Error reading cart:', e);
+        return [];
+    }
+}
+
+function saveStoredCart(cart) {
+    try {
+        localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cart));
+        updateCartBadge();
+    } catch (e) {
+        console.error('Error saving cart:', e);
+    }
+}
+
+function updateCartBadge() {
+    const cart = getStoredCart();
+    const count = cart.length;
+    const badge = document.getElementById('cart-counter');
+    const modalCount = document.getElementById('cart-modal-count');
+
+    if (badge) {
+        badge.textContent = count;
+        badge.style.display = count > 0 ? 'inline-block' : 'none';
+    }
+    if (modalCount) {
+        modalCount.textContent = count;
+    }
+}
+
+function toggleCartModal(forceOpen) {
+    const modal = document.getElementById('cart-modal');
+    if (!modal) return;
+
+    if (forceOpen === true) {
+        modal.style.display = 'flex';
+        renderUnifiedCartUI();
+        return;
+    }
+
+    const isVisible = modal.style.display === 'flex' || modal.style.display === 'block';
+    if (isVisible) {
+        modal.style.display = 'none';
+    } else {
+        modal.style.display = 'flex';
+        renderUnifiedCartUI();
+    }
+}
+
+function addServiceToCart(gigId, title, price, seller, deliveryTime) {
+    const cart = getStoredCart();
+    const exists = cart.find(item => item.type === 'service' && String(item.id) === String(gigId));
+    if (exists) {
+        showToast(`"${title}" is already in your cart!`, 'info');
+        toggleCartModal(true);
+        return;
+    }
+
+    cart.push({
+        id: String(gigId),
+        type: 'service',
+        title: title || 'Service Gig',
+        price: parseFloat(price) || 0,
+        seller: seller || 'Freelancer',
+        delivery_time: deliveryTime || 3
+    });
+
+    saveStoredCart(cart);
+    showToast(`Added service "${title}" to your cart!`, 'success');
+    toggleCartModal(true);
+}
+
+function addProductToCart(productId, title, price, category) {
+    const cart = getStoredCart();
+    const exists = cart.find(item => item.type === 'product' && String(item.id) === String(productId));
+    if (exists) {
+        showToast(`"${title}" is already in your cart!`, 'info');
+        toggleCartModal(true);
+        return;
+    }
+
+    cart.push({
+        id: String(productId),
+        type: 'product',
+        title: title || 'Digital Product',
+        price: parseFloat(price) || 0,
+        category: category || 'Digital Product'
+    });
+
+    saveStoredCart(cart);
+    showToast(`Added "${title}" to your cart!`, 'success');
+    toggleCartModal(true);
+}
+
+function removeUnifiedCartItem(index) {
+    const cart = getStoredCart();
+    if (index >= 0 && index < cart.length) {
+        const removed = cart.splice(index, 1)[0];
+        saveStoredCart(cart);
+        renderUnifiedCartUI();
+        showToast(`Removed "${removed.title}" from cart`, 'info');
+    }
+}
+
+function clearEntireCart() {
+    saveStoredCart([]);
+    renderUnifiedCartUI();
+    showToast('Cart cleared', 'info');
+}
+
+function renderUnifiedCartUI() {
+    const list = document.getElementById('cart-items-list');
+    const totalEl = document.getElementById('cart-total-display');
+    const checkoutBtn = document.getElementById('cart-checkout-btn');
+    if (!list) return;
+
+    const cart = getStoredCart();
+    updateCartBadge();
+
+    if (checkoutBtn) {
+        checkoutBtn.style.display = 'inline-flex';
+        checkoutBtn.disabled = cart.length === 0;
+        checkoutBtn.innerHTML = '<i class="fa-solid fa-lock"></i> Checkout with Credits';
+    }
+
+    if (cart.length === 0) {
+        list.innerHTML = `
+            <div class="cart-empty-msg">
+                <i class="fa-solid fa-basket-shopping"></i>
+                <p>Your cart is empty.</p>
+                <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 6px;">Add digital products or services to checkout.</p>
+            </div>
+        `;
+        if (totalEl) totalEl.textContent = '0.00 ৳';
+        return;
+    }
+
+    let total = 0;
+    let html = '<ul class="cart-items-ul">';
+    cart.forEach((item, index) => {
+        total += item.price;
+        const isService = item.type === 'service';
+        const typeBadge = isService
+            ? `<span class="cart-badge-type service"><i class="fa-solid fa-briefcase"></i> Service</span>`
+            : `<span class="cart-badge-type product"><i class="fa-solid fa-file-arrow-down"></i> Digital</span>`;
+        
+        const subInfo = isService 
+            ? `By ${item.seller} • ${item.delivery_time} Days Delivery`
+            : `${item.category} • Instant Download`;
+
+        html += `
+            <li class="cart-item-row">
+                <div class="cart-item-info">
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        ${typeBadge}
+                        <strong style="color: #ffffff; font-size: 0.92rem;">${item.title}</strong>
+                    </div>
+                    <span class="cart-item-sub">${subInfo}</span>
+                </div>
+                <div class="cart-item-actions">
+                    <strong style="color: var(--gold); font-size: 0.95rem;">${item.price.toFixed(2)} ৳</strong>
+                    <button onclick="removeUnifiedCartItem(${index})" class="cart-del-btn" title="Remove item">
+                        <i class="fa-solid fa-trash"></i>
+                    </button>
+                </div>
+            </li>
+        `;
+    });
+    html += '</ul>';
+    list.innerHTML = html;
+
+    if (totalEl) {
+        totalEl.textContent = `${total.toFixed(2)} ৳`;
+    }
+}
+
+async function checkoutUnifiedCart() {
+    const cart = getStoredCart();
+    if (cart.length === 0) {
+        showToast('Your cart is empty!', 'error');
+        return;
+    }
+
+    const checkoutBtn = document.getElementById('cart-checkout-btn');
+    if (checkoutBtn) {
+        checkoutBtn.disabled = true;
+        checkoutBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Processing Checkout...';
+    }
+
+    try {
+        const response = await fetch('/api/cart/checkout/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: JSON.stringify({ items: cart })
+        });
+
+        if (response.status === 401 || response.status === 403) {
+            alert('Please sign in to complete your checkout.');
+            window.location.href = '/login/?next=' + encodeURIComponent(window.location.pathname);
+            return;
+        }
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Update balance display
+            if (typeof data.new_balance !== 'undefined') {
+                const bEl = document.getElementById('user-balance');
+                const bDrop = document.getElementById('user-balance-dropdown');
+                const formatted = Number(data.new_balance).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                if (bEl) bEl.textContent = formatted;
+                if (bDrop) bDrop.textContent = formatted;
+            }
+
+            // Clear cart
+            saveStoredCart([]);
+
+            // Render Success View in Modal
+            const list = document.getElementById('cart-items-list');
+            const totalEl = document.getElementById('cart-total-display');
+            if (totalEl) totalEl.textContent = '0.00 ৳';
+
+            let itemsHtml = '';
+            if (data.orders && data.orders.length > 0) {
+                itemsHtml += `<h4 style="color: #60a5fa; font-size: 0.95rem; margin: 12px 0 6px 0;"><i class="fa-solid fa-briefcase"></i> Active Service Orders:</h4>`;
+                data.orders.forEach(o => {
+                    itemsHtml += `
+                        <div class="cart-success-item">
+                            <span>Order #${o.id} - ${o.title}</span>
+                            <a href="/dashboard/" class="btn-download-pkg" style="background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); color: #93c5fd;">
+                                View in Dashboard <i class="fa-solid fa-arrow-right"></i>
+                            </a>
+                        </div>
+                    `;
+                });
+            }
+
+            if (data.products && data.products.length > 0) {
+                itemsHtml += `<h4 style="color: #c084fc; font-size: 0.95rem; margin: 16px 0 6px 0;"><i class="fa-solid fa-download"></i> Digital Product Downloads:</h4>`;
+                data.products.forEach(p => {
+                    itemsHtml += `
+                        <div class="cart-success-item">
+                            <span>${p.title}</span>
+                            <a href="${p.download_url}" class="btn-download-pkg" target="_blank">
+                                <i class="fa-solid fa-file-arrow-down"></i> Download Package
+                            </a>
+                        </div>
+                    `;
+                });
+            }
+
+            if (list) {
+                list.innerHTML = `
+                    <div class="cart-success-view">
+                        <div class="cart-success-icon"><i class="fa-solid fa-circle-check"></i></div>
+                        <h3 class="cart-success-title">Payment &amp; Order Confirmed!</h3>
+                        <p class="cart-success-desc">Deducted from your AdEzy virtual balance. New balance: <strong>${data.new_balance.toFixed(2)} ৳</strong>.</p>
+                        
+                        <div class="cart-success-list">
+                            ${itemsHtml}
+                        </div>
+                        
+                        <button class="btn btn-primary" onclick="toggleCartModal()" style="width: 100%;">
+                            <i class="fa-solid fa-check"></i> Done
+                        </button>
+                    </div>
+                `;
+            }
+
+            if (checkoutBtn) {
+                checkoutBtn.style.display = 'none';
+            }
+
+            showToast('Checkout successful!', 'success');
+        } else {
+            alert(data.error || 'Checkout failed.');
+            if (checkoutBtn) {
+                checkoutBtn.disabled = false;
+                checkoutBtn.innerHTML = '<i class="fa-solid fa-lock"></i> Checkout with Credits';
+            }
+        }
+    } catch (e) {
+        console.error('Checkout error:', e);
+        alert('Network error during checkout. Please try again.');
+        if (checkoutBtn) {
+            checkoutBtn.disabled = false;
+            checkoutBtn.innerHTML = '<i class="fa-solid fa-lock"></i> Checkout with Credits';
+        }
+    }
+}
+
+function quickBuySingleProduct(productId, title, price) {
+    addProductToCart(productId, title, price, 'Digital Product');
+    checkoutUnifiedCart();
+}
+
+// Expose unified cart functions to window
+window.getStoredCart = getStoredCart;
+window.saveStoredCart = saveStoredCart;
+window.updateCartBadge = updateCartBadge;
+window.toggleCartModal = toggleCartModal;
+window.addServiceToCart = addServiceToCart;
+window.addProductToCart = addProductToCart;
+window.removeUnifiedCartItem = removeUnifiedCartItem;
+window.clearEntireCart = clearEntireCart;
+window.renderUnifiedCartUI = renderUnifiedCartUI;
+window.checkoutUnifiedCart = checkoutUnifiedCart;
+window.quickBuySingleProduct = quickBuySingleProduct;
+
+// ============================================================================
+// 20. WHATSAPP-STYLE LIVE MESSENGER CONTROLLER
+// ============================================================================
+
+let chatConversations = [];
+let activeChatType = null; // 'direct' | 'order' | 'suggested'
+let activeChatTarget = null; // username or orderId
+let activeChatMeta = {};
+let selectedChatAttachment = null;
+let currentChatTab = 'all'; // 'all' | 'unread' | 'orders'
+let chatPollingTimer = null;
+let contactsCache = [];
+let lastSeenTotalUnread = 0;
+let hasInitializedChatPoller = false;
+
+// Audio Chime Synthesizer (Web Audio API - zero external file dependencies)
+function playMessageChime() {
+    try {
+        const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioContextClass) return;
+        const ctx = new AudioContextClass();
+        const now = ctx.currentTime;
+
+        // Tone 1: Gentle bell intro
+        const osc1 = ctx.createOscillator();
+        const gain1 = ctx.createGain();
+        osc1.type = 'sine';
+        osc1.frequency.setValueAtTime(659.25, now); // E5
+        gain1.gain.setValueAtTime(0.12, now);
+        gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+        osc1.connect(gain1);
+        gain1.connect(ctx.destination);
+        osc1.start(now);
+        osc1.stop(now + 0.18);
+
+        // Tone 2: Crisp confirmation chime
+        const osc2 = ctx.createOscillator();
+        const gain2 = ctx.createGain();
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(987.77, now + 0.09); // B5
+        gain2.gain.setValueAtTime(0.14, now + 0.09);
+        gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.38);
+        osc2.connect(gain2);
+        gain2.connect(ctx.destination);
+        osc2.start(now + 0.09);
+        osc2.stop(now + 0.38);
+    } catch (err) {
+        console.debug('Audio chime skipped:', err);
+    }
+}
+
+// Helpers
+function escapeChatHtml(str) {
+    if (!str) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+function formatChatFileSize(bytes) {
+    if (!bytes || isNaN(bytes)) return '';
+    if (bytes < 1024) return bytes + ' B';
+    const kb = bytes / 1024;
+    if (kb < 1024) return kb.toFixed(1) + ' KB';
+    const mb = kb / 1024;
+    return mb.toFixed(1) + ' MB';
+}
+
+function formatChatTime(isoString) {
+    if (!isoString) return '';
+    try {
+        const date = new Date(isoString);
+        const now = new Date();
+        const diffMs = now - date;
+        const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+        if (diffDays === 0) {
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } else if (diffDays === 1) {
+            return 'Yesterday';
+        } else if (diffDays < 7) {
+            return date.toLocaleDateString([], { weekday: 'short' });
+        } else {
+            return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
+        }
+    } catch (e) {
+        return '';
+    }
+}
+
+// Toggle Messenger Modal
+function toggleChatApp() {
+    const modal = document.getElementById('whatsapp-modal');
+    if (!modal) return;
+
+    if (modal.style.display === 'none' || !modal.style.display) {
+        modal.style.display = 'flex';
+        loadChatConversations();
+        ensureChatPollerStarted();
+    } else {
+        modal.style.display = 'none';
+        mobileBackToChatList();
+    }
+}
+
+function closeChatApp() {
+    const modal = document.getElementById('whatsapp-modal');
+    if (modal) {
+        modal.style.display = 'none';
+        mobileBackToChatList();
+    }
+}
+
+// Ensure polling starts on page load
+let chatPollCounter = 0;
+function ensureChatPollerStarted() {
+    if (hasInitializedChatPoller) return;
+    hasInitializedChatPoller = true;
+
+    // Load initial conversation count silently for badge
+    loadChatConversations(true);
+
+    // Smart Adaptive Polling:
+    // - Pause completely when the tab is hidden to save network and CPU.
+    // - Every 3.5s:
+    //     - If WhatsApp modal is open with active chat: poll messages every 3.5s for real-time feel.
+    //     - Poll conversation list & unread counters every 3 ticks (~10.5s), or immediately if modal just opened.
+    chatPollingTimer = setInterval(() => {
+        if (isPageHidden()) return;
+
+        chatPollCounter++;
+        const modal = document.getElementById('whatsapp-modal');
+        const isOpen = modal && modal.style.display === 'flex';
+
+        if (isOpen && activeChatTarget) {
+            loadActiveChatMessages(true);
+        }
+
+        if (chatPollCounter % 3 === 0 || (isOpen && !activeChatTarget)) {
+            loadChatConversations(true);
+        }
+    }, 3500);
+
+    // Immediate refresh on tab visibility change
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) {
+            loadChatConversations(true);
+            const modal = document.getElementById('whatsapp-modal');
+            if (modal && modal.style.display === 'flex' && activeChatTarget) {
+                loadActiveChatMessages(true);
+            }
+        }
+    });
+}
+
+// Load Conversations from API
+async function loadChatConversations(silent = false) {
+    const listEl = document.getElementById('whatsapp-conversations-list');
+    if (!silent && listEl) {
+        listEl.innerHTML = `
+            <div class="chat-empty-state">
+                <i class="fa-solid fa-spinner fa-spin text-gold" style="font-size: 1.8rem; margin-bottom: 8px;"></i>
+                <p>Loading chats...</p>
+            </div>
+        `;
+    }
+
+    try {
+        const response = await fetch('/api/conversations/');
+        if (!response.ok) {
+            if (response.status === 401 || response.status === 403) {
+                if (!silent && listEl) {
+                    listEl.innerHTML = `
+                        <div class="chat-empty-state">
+                            <i class="fa-solid fa-lock text-gold" style="font-size: 1.8rem; margin-bottom: 8px;"></i>
+                            <p>Please <a href="/login/" style="color: var(--gold); text-decoration: underline;">log in</a> to view your conversations.</p>
+                        </div>
+                    `;
+                }
+            }
+            return;
+        }
+
+        const data = await response.json();
+        chatConversations = data.conversations || [];
+        const totalUnread = data.total_unread || 0;
+
+        // Global Navbar Badge
+        const globalBadge = document.getElementById('global-msg-counter');
+        if (globalBadge) {
+            if (totalUnread > 0) {
+                globalBadge.textContent = totalUnread > 99 ? '99+' : totalUnread;
+                globalBadge.style.display = 'inline-flex';
+            } else {
+                globalBadge.style.display = 'none';
+            }
+        }
+
+        // Also update legacy messages dropdown if present on page
+        const legacyBadge = document.getElementById('messages-badge');
+        if (legacyBadge) {
+            if (totalUnread > 0) {
+                legacyBadge.textContent = totalUnread;
+                legacyBadge.style.display = 'block';
+            } else {
+                legacyBadge.style.display = 'none';
+            }
+        }
+        const legacyList = document.getElementById('conversations-list');
+        if (legacyList) {
+            if (chatConversations.length > 0) {
+                legacyList.innerHTML = chatConversations.map(conv => {
+                    const timeAgo = getTimeAgo(new Date(conv.last_message_time));
+                    return `
+                        <div class="conversation-item ${conv.unread_count > 0 ? 'unread' : ''}" onclick="openWhatsAppChat('${conv.other_user}')" style="cursor: pointer;">
+                            <div class="conversation-avatar">${conv.other_user_avatar || conv.other_user.charAt(0).toUpperCase()}</div>
+                            <div class="conversation-content">
+                                <div class="conversation-header">
+                                    <span class="conversation-user">${escapeChatHtml(conv.other_user_name || conv.other_user)}</span>
+                                    <span class="conversation-time">${timeAgo}</span>
+                                </div>
+                                <div class="conversation-gig">${escapeChatHtml(conv.latest_order_title || 'Direct Chat')}</div>
+                                <div class="conversation-last-message">
+                                    ${escapeChatHtml(conv.last_message)}
+                                    ${conv.unread_count > 0 ? `<span class="conversation-unread">${conv.unread_count}</span>` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                legacyList.innerHTML = `
+                    <div class="empty-conversations">
+                        <i class="fas fa-comments"></i>
+                        <p>No messages yet</p>
+                        <p style="font-size: 0.85rem;">Start a conversation by clicking on a seller</p>
+                    </div>
+                `;
+            }
+        }
+
+        // Notification chime & toast when new incoming unread messages appear
+        if (totalUnread > lastSeenTotalUnread && lastSeenTotalUnread >= 0) {
+            playMessageChime();
+            if (typeof showToast === 'function') {
+                showToast('You have new incoming messages!', 'info');
+            }
+        }
+        lastSeenTotalUnread = totalUnread;
+
+        renderChatConversationsList();
+    } catch (e) {
+        console.error('Error loading conversations:', e);
+        if (!silent && listEl) {
+            listEl.innerHTML = `
+                <div class="chat-empty-state">
+                    <i class="fa-solid fa-triangle-exclamation" style="color: #ef4444; font-size: 1.8rem; margin-bottom: 8px;"></i>
+                    <p>Unable to load chats. Click refresh to retry.</p>
+                </div>
+            `;
+        }
+    }
+}
+
+// Render Conversations List in Left Sidebar (One entry per contact, just like WhatsApp)
+function renderChatConversationsList() {
+    const listEl = document.getElementById('whatsapp-conversations-list');
+    if (!listEl) return;
+
+    const searchInput = document.getElementById('chat-search-input');
+    const query = (searchInput ? searchInput.value : '').toLowerCase().trim();
+
+    // Filter by tab
+    let filtered = chatConversations.filter(c => {
+        if (currentChatTab === 'unread') return c.unread_count > 0;
+        if (currentChatTab === 'orders') return c.has_order === true;
+        return true;
+    });
+
+    // Filter by search query
+    if (query) {
+        filtered = filtered.filter(c => {
+            const user = (c.other_user || '').toLowerCase();
+            const name = (c.other_user_name || '').toLowerCase();
+            const orderTitle = (c.latest_order_title || '').toLowerCase();
+            const msg = (c.last_message || '').toLowerCase();
+            return user.includes(query) || name.includes(query) || orderTitle.includes(query) || msg.includes(query);
+        });
+    }
+
+    if (filtered.length === 0) {
+        listEl.innerHTML = `
+            <div class="chat-empty-state">
+                <i class="fa-solid fa-comments" style="font-size: 2rem; color: var(--gold); margin-bottom: 10px; opacity: 0.8;"></i>
+                <p>No conversations found.<br>
+                <span style="font-size: 0.78rem; color: var(--text-muted);">
+                    Click the <i class="fa-solid fa-pen-to-square text-gold"></i> icon above to start chatting with a creator!
+                </span></p>
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    filtered.forEach(c => {
+        const isActive = (activeChatTarget === c.other_user);
+        const avatarLetter = (c.other_user_avatar || c.other_user.charAt(0)).toUpperCase();
+        const formattedTime = formatChatTime(c.last_message_time);
+        const displayName = escapeChatHtml(c.other_user_name || c.other_user);
+
+        let orderBadgeHtml = '';
+        if (c.latest_order_id) {
+            orderBadgeHtml = `<span style="font-size: 0.68rem; color: #93c5fd; background: rgba(59, 130, 246, 0.15); padding: 1px 6px; border-radius: 6px; margin-left: 6px;">Order #${c.latest_order_id}</span>`;
+        }
+
+        html += `
+            <div class="conversation-row ${isActive ? 'active' : ''}" 
+                 onclick="selectChat('${escapeChatHtml(c.other_user)}')">
+                <div class="chat-avatar">${avatarLetter}</div>
+                <div class="conv-meta-col">
+                    <div class="conv-top-line">
+                        <span class="conv-user-name">${displayName} ${orderBadgeHtml}</span>
+                        <span class="conv-time">${formattedTime}</span>
+                    </div>
+                    <div class="conv-bottom-line">
+                        <span class="conv-snippet">
+                            ${c.has_attachment ? '<i class="fa-solid fa-paperclip text-gold"></i> ' : ''}
+                            ${escapeChatHtml(c.last_message || 'Start chatting')}
+                        </span>
+                        ${c.unread_count > 0 ? `<span class="conv-unread-pill">${c.unread_count}</span>` : ''}
+                    </div>
+                </div>
+            </div>
+        `;
+    });
+
+    listEl.innerHTML = html;
+}
+
+// Switch Tabs (All / Unread / Orders)
+function switchChatTab(tab, btn) {
+    currentChatTab = tab;
+    document.querySelectorAll('.chat-tab-pill').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderChatConversationsList();
+}
+
+// Filter Chat List via Search Input
+function filterChatList(query) {
+    renderChatConversationsList();
+}
+
+// Focus search input from header
+function focusChatSearch() {
+    const input = document.getElementById('chat-search-input');
+    if (input) {
+        input.focus();
+        input.select();
+    }
+}
+
+// Select Active Chat Conversation (By Contact Username)
+function selectChat(username) {
+    const conv = chatConversations.find(c => c.other_user === username) || {
+        other_user: username,
+        other_user_avatar: username.charAt(0).toUpperCase(),
+        other_user_name: username,
+        latest_order_id: null,
+        latest_order_title: null,
+        status: 'Online'
+    };
+
+    activeChatType = 'direct';
+    activeChatTarget = username;
+    activeChatMeta = {
+        otherUser: username,
+        avatar: conv.other_user_avatar,
+        name: conv.other_user_name || username,
+        orderId: conv.latest_order_id,
+        orderTitle: conv.latest_order_title
+    };
+
+    // Update Right Panel Header
+    const avatarEl = document.getElementById('active-chat-avatar');
+    const nameEl = document.getElementById('active-chat-name');
+    const subEl = document.getElementById('active-chat-sub');
+    const orderPill = document.getElementById('active-order-pill');
+
+    if (avatarEl) avatarEl.textContent = conv.other_user_avatar;
+    if (nameEl) nameEl.textContent = conv.other_user_name || username;
+    if (subEl) subEl.textContent = 'Active now';
+
+    if (orderPill) {
+        if (conv.latest_order_id) {
+            orderPill.textContent = `Order #${conv.latest_order_id} • ${conv.latest_order_title || 'Service'}`;
+            orderPill.style.display = 'inline-block';
+        } else {
+            orderPill.style.display = 'none';
+        }
+    }
+
+    // Toggle Empty View vs Active Chat
+    const emptyView = document.getElementById('whatsapp-chat-empty');
+    const activeView = document.getElementById('whatsapp-active-chat');
+    if (emptyView) emptyView.style.display = 'none';
+    if (activeView) activeView.style.display = 'flex';
+
+    // Mobile View Toggle
+    const sidebar = document.getElementById('whatsapp-sidebar');
+    const panel = document.getElementById('whatsapp-chat-panel');
+    if (sidebar && panel) {
+        sidebar.classList.add('hide-on-mobile');
+        panel.classList.add('show-on-mobile');
+    }
+
+    // Clear any previous attachment
+    clearSelectedAttachment();
+
+    // Re-render conversation list to highlight active item
+    renderChatConversationsList();
+
+    // Immediately load messages for this contact (with immediate clearing of old messages)
+    loadActiveChatMessages(false);
+
+    // Focus input
+    setTimeout(() => {
+        const input = document.getElementById('chat-text-input');
+        if (input) input.focus();
+    }, 150);
+}
+
+// Mobile Back to Conversation List
+function mobileBackToChatList() {
+    const sidebar = document.getElementById('whatsapp-sidebar');
+    const panel = document.getElementById('whatsapp-chat-panel');
+    if (sidebar && panel) {
+        sidebar.classList.remove('hide-on-mobile');
+        panel.classList.remove('show-on-mobile');
+    }
+}
+
+// Monotonic request ID to completely eliminate async race conditions
+let currentChatRequestId = 0;
+
+// Load Messages for Currently Active Chat
+async function loadActiveChatMessages(silent = false) {
+    if (!activeChatTarget) return;
+
+    const thisRequestId = ++currentChatRequestId;
+    const requestedTarget = activeChatTarget;
+    const flowEl = document.getElementById('chat-messages-flow');
+
+    // On user chat switch, clear previous messages immediately so no cross-contact leak occurs!
+    if (!silent && flowEl) {
+        flowEl.innerHTML = `
+            <div class="chat-empty-state" style="margin: auto;">
+                <i class="fa-solid fa-spinner fa-spin text-gold" style="font-size: 1.8rem; margin-bottom: 8px;"></i>
+                <p>Loading conversation...</p>
+            </div>
+        `;
+    }
+
+    try {
+        const url = '/api/chat/messages/?username=' + encodeURIComponent(requestedTarget);
+        const res = await fetch(url);
+        if (!res.ok) return;
+
+        const data = await res.json();
+        if (!data.success) return;
+
+        // Discard response if user has already switched to another contact in the meantime!
+        if (thisRequestId !== currentChatRequestId || activeChatTarget !== requestedTarget) {
+            return;
+        }
+
+        // Render message bubbles
+        let bubblesHtml = '';
+        if (data.messages && data.messages.length > 0) {
+            data.messages.forEach(m => {
+                const rowClass = m.is_own ? 'outgoing' : 'incoming';
+                let attachHtml = '';
+
+                if (m.has_attachment && m.attachment_url) {
+                    if (m.attachment_type === 'image') {
+                        attachHtml = `
+                            <div class="bubble-img-wrap" onclick="openChatImageLightbox('${m.attachment_url}')">
+                                <img src="${m.attachment_url}" alt="${escapeChatHtml(m.attachment_name || 'Attached Image')}" loading="lazy">
+                            </div>
+                        `;
+                    } else {
+                        attachHtml = `
+                            <a href="${m.attachment_url}" target="_blank" download class="bubble-doc-card">
+                                <i class="fa-solid fa-file-lines bubble-doc-icon"></i>
+                                <div class="bubble-doc-meta">
+                                    <span class="bubble-doc-name">${escapeChatHtml(m.attachment_name || 'Document')}</span>
+                                    <span class="bubble-doc-tag"><i class="fa-solid fa-download"></i> Download file</span>
+                                </div>
+                            </a>
+                        `;
+                    }
+                }
+
+                let textHtml = '';
+                if (m.message) {
+                    textHtml = `<div class="bubble-text">${escapeChatHtml(m.message).replace(/\n/g, '<br>')}</div>`;
+                }
+
+                bubblesHtml += `
+                    <div class="message-bubble-row ${rowClass}">
+                        <div class="chat-bubble">
+                            ${attachHtml}
+                            ${textHtml}
+                            <div class="bubble-meta">
+                                <span>${m.time_formatted || ''}</span>
+                                ${m.is_own ? '<i class="fa-solid fa-check-double text-gold" title="Delivered"></i>' : ''}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        } else {
+            bubblesHtml = `
+                <div class="chat-empty-state" style="margin: auto;">
+                    <div class="whatsapp-glow-circle" style="width: 60px; height: 60px; font-size: 1.8rem; margin: 0 auto 12px auto;">
+                        <i class="fa-solid fa-comments"></i>
+                    </div>
+                    <p style="color: #ffffff; font-weight: 700; margin-bottom: 4px;">Start a Conversation</p>
+                    <span style="font-size: 0.8rem; color: var(--text-muted);">
+                        No messages yet with <strong>${escapeChatHtml(data.other_user ? data.other_user.name : requestedTarget)}</strong>. Say hello or discuss order requirements!
+                    </span>
+                </div>
+            `;
+        }
+
+        if (flowEl && thisRequestId === currentChatRequestId) {
+            const wasNearBottom = flowEl.scrollHeight - flowEl.clientHeight <= flowEl.scrollTop + 80;
+            flowEl.innerHTML = bubblesHtml;
+            if (!silent || wasNearBottom) {
+                flowEl.scrollTop = flowEl.scrollHeight;
+            }
+        }
+
+        // Mark local unread as cleared
+        const found = chatConversations.find(c => c.other_user === requestedTarget);
+        if (found && found.unread_count > 0) {
+            found.unread_count = 0;
+            renderChatConversationsList();
+        }
+
+    } catch (e) {
+        console.error('Error fetching chat messages:', e);
+    }
+}
+
+// Refresh Active Chat Manually
+function refreshActiveChat() {
+    loadActiveChatMessages();
+    loadChatConversations(true);
+}
+
+// Auto-resize Chat Textarea
+function autoResizeChatInput(el) {
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+}
+
+// Enter Key Handler for Chat Input
+function handleChatInputKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        const form = document.getElementById('chat-send-form');
+        if (form) {
+            handleSendChatMessage(e);
+        }
+    }
+}
+
+// Trigger Hidden File Input
+function triggerAttachmentSelect() {
+    const fileInput = document.getElementById('chat-file-input');
+    if (fileInput) fileInput.click();
+}
+
+// Handle File Selection
+function handleChatFileSelected(input) {
+    if (!input.files || !input.files[0]) return;
+
+    const file = input.files[0];
+    // Max 25 MB
+    if (file.size > 25 * 1024 * 1024) {
+        alert('File size exceeds the 25MB limit. Please choose a smaller file.');
+        input.value = '';
+        return;
+    }
+
+    selectedChatAttachment = file;
+
+    const previewBar = document.getElementById('chat-attachment-preview');
+    const nameLabel = document.getElementById('attachment-name-label');
+    const sizeLabel = document.getElementById('attachment-size-label');
+    const thumbEl = document.getElementById('attachment-thumb-preview');
+
+    if (nameLabel) nameLabel.textContent = file.name;
+    if (sizeLabel) sizeLabel.textContent = formatChatFileSize(file.size);
+
+    if (thumbEl) {
+        if (file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                thumbEl.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
+            };
+            reader.readAsDataURL(file);
+        } else {
+            thumbEl.innerHTML = `<i class="fa-solid fa-file-zipper"></i>`;
+        }
+    }
+
+    if (previewBar) previewBar.style.display = 'flex';
+}
+
+// Clear Selected Attachment
+function clearSelectedAttachment() {
+    selectedChatAttachment = null;
+    const fileInput = document.getElementById('chat-file-input');
+    if (fileInput) fileInput.value = '';
+    const previewBar = document.getElementById('chat-attachment-preview');
+    if (previewBar) previewBar.style.display = 'none';
+}
+
+// Send Message with Text & Optional Attachment
+async function handleSendChatMessage(event) {
+    if (event) event.preventDefault();
+
+    const input = document.getElementById('chat-text-input');
+    const sendBtn = document.getElementById('chat-send-btn');
+    const text = input ? input.value.trim() : '';
+
+    if (!text && !selectedChatAttachment) {
+        return;
+    }
+
+    if (!activeChatTarget) {
+        alert('Please select a conversation first.');
+        return;
+    }
+
+    // Build form data
+    const formData = new FormData();
+    formData.append('message', text);
+    formData.append('username', activeChatTarget);
+
+    if (activeChatMeta && activeChatMeta.orderId) {
+        formData.append('order_id', activeChatMeta.orderId);
+    }
+
+    if (selectedChatAttachment) {
+        formData.append('attachment', selectedChatAttachment);
+    }
+
+    // UI state
+    if (sendBtn) {
+        sendBtn.disabled = true;
+        sendBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i>';
+    }
+
+    try {
+        const response = await fetch('/api/chat/send/', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': getCookie('csrftoken')
+            },
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Reset input and attachment preview
+            if (input) {
+                input.value = '';
+                autoResizeChatInput(input);
+            }
+            clearSelectedAttachment();
+
+            // Refresh messages and conversation list
+            await loadActiveChatMessages(true);
+            loadChatConversations(true);
+        } else {
+            alert(data.error || 'Could not send message.');
+        }
+    } catch (e) {
+        console.error('Send message error:', e);
+        alert('Network error sending message. Please try again.');
+    } finally {
+        if (sendBtn) {
+            sendBtn.disabled = false;
+            sendBtn.innerHTML = '<i class="fa-solid fa-paper-plane"></i>';
+        }
+    }
+}
+
+// Start New Chat Contacts Picker
+function toggleNewChatPicker() {
+    const picker = document.getElementById('new-chat-picker');
+    if (!picker) return;
+
+    if (picker.style.display === 'none' || !picker.style.display) {
+        picker.style.display = 'block';
+        loadChatContacts();
+    } else {
+        picker.style.display = 'none';
+    }
+}
+
+// Load Contacts List
+async function loadChatContacts() {
+    const listEl = document.getElementById('picker-contacts-list');
+    if (!listEl) return;
+
+    try {
+        const res = await fetch('/api/chat/contacts/');
+        const data = await res.json();
+        contactsCache = data.contacts || [];
+
+        renderContactPickerList(contactsCache);
+    } catch (e) {
+        console.error('Error fetching contacts:', e);
+        listEl.innerHTML = `<div class="chat-empty-state"><p style="color: #ef4444;">Error loading contacts.</p></div>`;
+    }
+}
+
+function renderContactPickerList(contacts) {
+    const listEl = document.getElementById('picker-contacts-list');
+    if (!listEl) return;
+
+    if (contacts.length === 0) {
+        listEl.innerHTML = `<div class="chat-empty-state"><p>No creators found.</p></div>`;
+        return;
+    }
+
+    let html = '';
+    contacts.forEach(c => {
+        html += `
+            <div class="picker-contact-row" onclick="startChatWithContact('${escapeChatHtml(c.username)}', '${c.avatar}')">
+                <div class="chat-avatar">${c.avatar}</div>
+                <div class="picker-contact-info">
+                    <span class="picker-contact-name">${escapeChatHtml(c.username)}</span>
+                    <span class="picker-contact-sub">${c.role} • ${c.gigs_count} active services</span>
+                </div>
+            </div>
+        `;
+    });
+    listEl.innerHTML = html;
+}
+
+function filterContactList(query) {
+    const q = (query || '').toLowerCase().trim();
+    if (!q) {
+        renderContactPickerList(contactsCache);
+        return;
+    }
+    const filtered = contactsCache.filter(c => c.username.toLowerCase().includes(q) || c.role.toLowerCase().includes(q));
+    renderContactPickerList(filtered);
+}
+
+function startChatWithContact(username, avatar) {
+    toggleNewChatPicker();
+    selectChat(username);
+}
+
+// Open Direct Chat from Freelancer Gig Card ("Message Seller" button)
+function openChatWithUser(username, gigTitle) {
+    toggleChatApp();
+    selectChat(username);
+
+    if (gigTitle) {
+        setTimeout(() => {
+            const input = document.getElementById('chat-text-input');
+            if (input) {
+                input.value = `Hi @${username}, I'm interested in "${gigTitle}". Can we discuss the requirements?`;
+                autoResizeChatInput(input);
+                input.focus();
+            }
+        }, 300);
+    }
+}
+
+// Open Chat for specific Order
+function openChatForOrder(orderId, orderTitle) {
+    toggleChatApp();
+    loadChatConversations().then(() => {
+        const found = chatConversations.find(c => c.latest_order_id == orderId);
+        if (found) {
+            selectChat(found.other_user);
+        }
+    });
+}
+
+// Image Zoom Lightbox
+function openChatImageLightbox(src) {
+    const lightbox = document.getElementById('chat-image-lightbox');
+    const img = document.getElementById('lightbox-img');
+    if (lightbox && img) {
+        img.src = src;
+        lightbox.style.display = 'flex';
+    }
+}
+
+function closeChatLightbox() {
+    const lightbox = document.getElementById('chat-image-lightbox');
+    if (lightbox) lightbox.style.display = 'none';
+}
+
+// Expose WhatsApp Messenger methods globally
+window.toggleChatApp = toggleChatApp;
+window.closeChatApp = closeChatApp;
+window.switchChatTab = switchChatTab;
+window.filterChatList = filterChatList;
+window.selectChat = selectChat;
+window.mobileBackToChatList = mobileBackToChatList;
+window.refreshActiveChat = refreshActiveChat;
+window.autoResizeChatInput = autoResizeChatInput;
+window.handleChatInputKey = handleChatInputKey;
+window.triggerAttachmentSelect = triggerAttachmentSelect;
+window.handleChatFileSelected = handleChatFileSelected;
+window.clearSelectedAttachment = clearSelectedAttachment;
+window.handleSendChatMessage = handleSendChatMessage;
+window.toggleNewChatPicker = toggleNewChatPicker;
+window.filterContactList = filterContactList;
+window.startChatWithContact = startChatWithContact;
+window.openChatWithUser = openChatWithUser;
+window.openChatForOrder = openChatForOrder;
+window.openChatImageLightbox = openChatImageLightbox;
+window.closeChatLightbox = closeChatLightbox;
+window.playMessageChime = playMessageChime;
+window.focusChatSearch = focusChatSearch;
+
+// Start poller once DOM content is ready
+document.addEventListener('DOMContentLoaded', () => {
+    ensureChatPollerStarted();
+});

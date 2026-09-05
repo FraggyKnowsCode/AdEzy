@@ -1,0 +1,242 @@
+{% extends 'marketplace/base.html' %}
+{% load static %}
+
+{% block title %}{{ product.title }} - AdEzy Digital Products{% endblock %}
+
+{% block content %}
+<div class="product-detail-page">
+    <div class="container">
+        <!-- Breadcrumbs -->
+        <nav class="gig-breadcrumbs" aria-label="Breadcrumb">
+            <a href="/"><i class="fa-solid fa-house"></i> Home</a>
+            <i class="fa-solid fa-chevron-right breadcrumb-sep"></i>
+            <a href="/products/">Products</a>
+            <i class="fa-solid fa-chevron-right breadcrumb-sep"></i>
+            <a href="/products/?category={{ product.category }}">{{ product.category_label }}</a>
+            <i class="fa-solid fa-chevron-right breadcrumb-sep"></i>
+            <span class="breadcrumb-current">{{ product.title }}</span>
+        </nav>
+
+        <!-- Main Product 2-Column Layout -->
+        <div class="gig-layout-grid">
+            <!-- Left Column: Details & Media -->
+            <div class="gig-main-col">
+                <!-- Header Info -->
+                <div class="gig-header-info">
+                    <span class="gig-category-badge">
+                        <i class="fa-solid fa-box-open"></i> {{ product.category_label }}
+                    </span>
+                    <h1 class="gig-page-title">{{ product.title }}</h1>
+                    
+                    <div class="gig-seller-quick-bar">
+                        <div class="seller-avatar-bubble" style="background: linear-gradient(135deg, #f5b700, #ff8400); color: #000;">
+                            <i class="fa-solid fa-cube"></i>
+                        </div>
+                        <div class="seller-quick-meta">
+                            <span class="seller-name-tag">By <strong>{{ product.author }}</strong></span>
+                            <div class="seller-score">
+                                <i class="fa-solid fa-star text-gold"></i>
+                                <strong>{{ product.rating }}</strong>
+                                <span class="review-counter">({{ product.reviews_count }} verified reviews)</span>
+                            </div>
+                        </div>
+                        <div class="delivery-time-pill" style="background: rgba(34, 197, 94, 0.15); border-color: rgba(34, 197, 94, 0.3); color: #4ade80;">
+                            <i class="fa-solid fa-bolt"></i> Instant Download
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Showcase Preview Banner -->
+                <div class="product-showcase-banner {{ product.accent_class }}">
+                    <div class="product-banner-badge {{ product.tag_class }}">
+                        {{ product.tag }}
+                    </div>
+                    <div class="product-banner-center">
+                        {% if product.icon %}
+                            <i class="{{ product.icon }} product-banner-icon"></i>
+                        {% else %}
+                            <span class="product-banner-symbol">{{ product.tag }}</span>
+                        {% endif %}
+                        <div class="product-banner-glow-circle"></div>
+                    </div>
+                    <div class="product-banner-meta-bar">
+                        <span><i class="fa-solid fa-file-zipper"></i> {{ product.file_size }}</span>
+                        <span><i class="fa-solid fa-infinity"></i> Lifetime Access</span>
+                        <span><i class="fa-solid fa-circle-check text-green"></i> 100% Virus-Free Verified</span>
+                    </div>
+                </div>
+
+                <!-- About This Product Card -->
+                <div class="gig-section-card">
+                    <h2 class="gig-card-heading">
+                        <i class="fa-solid fa-circle-info text-gold"></i> About This Digital Product
+                    </h2>
+                    <div class="gig-description-body">
+                        <p style="font-size: 1.05rem; line-height: 1.7; margin-bottom: 16px; color: #e2e8f0;">
+                            {{ product.tagline }}
+                        </p>
+                        <p style="line-height: 1.8; color: var(--text-secondary);">
+                            {{ product.description }}
+                        </p>
+                    </div>
+                </div>
+
+                <!-- What's Included / Deliverables -->
+                <div class="gig-section-card">
+                    <h2 class="gig-card-heading">
+                        <i class="fa-solid fa-list-check text-gold"></i> What's Included In This Package
+                    </h2>
+                    <div class="deliverables-grid">
+                        {% for feature in product.features %}
+                            <div class="deliverable-item">
+                                <div class="check-circle"><i class="fa-solid fa-check"></i></div>
+                                <div>
+                                    <strong style="color: #ffffff; font-size: 0.95rem;">{{ feature }}</strong>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Technical Specifications & Compatibility -->
+                <div class="gig-section-card">
+                    <h2 class="gig-card-heading">
+                        <i class="fa-solid fa-sliders text-gold"></i> Technical Specifications
+                    </h2>
+                    <div class="product-specs-table">
+                        {% for spec in product.specs %}
+                            <div class="spec-table-row">
+                                <span class="spec-table-label">{{ spec.label }}</span>
+                                <strong class="spec-table-value">{{ spec.value }}</strong>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <!-- Software Compatibility Bar -->
+                <div class="gig-section-card">
+                    <h2 class="gig-card-heading">
+                        <i class="fa-solid fa-laptop-code text-gold"></i> Compatible Software
+                    </h2>
+                    <p style="color: var(--text-secondary); line-height: 1.6; margin: 0;">
+                        Tested and 100% compatible with: <strong>{{ product.compatibility }}</strong>. Includes clear setup documentation and quick video guide.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Right Column: Sticky Pricing & Action Widget -->
+            <div class="gig-sidebar-col">
+                <div class="sticky-order-box">
+                    <div class="order-box-header">
+                        <span class="package-tag">Instant Digital License</span>
+                        <div class="package-price">
+                            <span class="price-symbol">৳</span>
+                            <span class="price-val">{{ product.price }}</span>
+                        </div>
+                    </div>
+
+                    <div class="order-box-body">
+                        <p class="package-summary-text">
+                            Full commercial license for <strong>{{ product.title }}</strong> with instant cloud download and lifetime updates.
+                        </p>
+
+                        <div class="package-specs-list">
+                            <div class="spec-row">
+                                <span><i class="fa-solid fa-bolt text-gold"></i> Delivery</span>
+                                <strong style="color: #4ade80;">Instant Download</strong>
+                            </div>
+                            <div class="spec-row">
+                                <span><i class="fa-solid fa-certificate text-gold"></i> License</span>
+                                <strong>Commercial &amp; Personal</strong>
+                            </div>
+                            <div class="spec-row">
+                                <span><i class="fa-solid fa-arrows-rotate text-gold"></i> Updates</span>
+                                <strong>Free Lifetime</strong>
+                            </div>
+                            <div class="spec-row">
+                                <span><i class="fa-solid fa-shield-halved text-gold"></i> File Format</span>
+                                <strong>{{ product.file_size }}</strong>
+                            </div>
+                        </div>
+
+                        <!-- CTA Buttons -->
+                        <div class="order-box-actions">
+                            <!-- Add to Cart Button -->
+                            <button class="btn-order-cart" onclick="addProductToCart('{{ product.id }}', '{{ product.title|escapejs }}', {{ product.price }}, '{{ product.category_label|escapejs }}')" style="width: 100%; margin-bottom: 10px;">
+                                <i class="fa-solid fa-cart-plus"></i> Add to Cart
+                            </button>
+
+                            <!-- Instant Buy Now Button -->
+                            {% if user.is_authenticated %}
+                                <button class="btn-order-primary" onclick="quickBuySingleProduct('{{ product.id }}', '{{ product.title|escapejs }}', {{ product.price }})">
+                                    <i class="fa-solid fa-bolt"></i> Instant Buy ({{ product.price }} ৳)
+                                </button>
+                            {% else %}
+                                <a href="/login/?next=/product/{{ product.id }}/" class="btn-order-primary">
+                                    <i class="fa-solid fa-right-to-bracket"></i> Sign In to Buy ({{ product.price }} ৳)
+                                </a>
+                            {% endif %}
+
+                            <a href="/products/" class="btn-back-services">
+                                <i class="fa-solid fa-arrow-left"></i> Browse All Products
+                            </a>
+                        </div>
+
+                        <!-- AdEzy Buyer Protection Notice -->
+                        <div class="order-trust-notice">
+                            <i class="fa-solid fa-shield-check"></i>
+                            <div>
+                                <strong>AdEzy Digital Guarantee</strong>
+                                <p>Verified files, zero viruses, instant link retrieval anytime from your account.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Related Products Section -->
+        <div class="related-gigs-section" style="margin-top: 60px;">
+            <div class="section-title-row">
+                <h2 class="section-heading">Related Digital <span class="text-gold">Products</span></h2>
+                <a href="/products/" class="view-all-link">View all products <i class="fa-solid fa-arrow-right"></i></a>
+            </div>
+            
+            <div class="products-cards-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 24px;">
+                {% for rp in related_products %}
+                    <div class="prod-card" onclick="window.location.href='/product/{{ rp.id }}/'" style="cursor: pointer;">
+                        <div class="prod-preview-box {{ rp.accent_class }}">
+                            <div class="prod-badge {{ rp.tag_class }}">{{ rp.tag }}</div>
+                            <div class="prod-center-icon">
+                                {% if rp.icon %}
+                                    <i class="{{ rp.icon }}"></i>
+                                {% else %}
+                                    <span class="ps-txt">{{ rp.tag }}</span>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="prod-details">
+                            <span class="prod-cat-pill">{{ rp.category_label }}</span>
+                            <h3 class="prod-title"><a href="/product/{{ rp.id }}/">{{ rp.title }}</a></h3>
+                            <p class="prod-desc">{{ rp.tagline|truncatechars:70 }}</p>
+                            
+                            <div class="prod-bottom-row">
+                                <div class="prod-price-wrap">
+                                    <span class="price-bdt">৳</span>
+                                    <span class="price-num">{{ rp.price }}</span>
+                                </div>
+                                <div class="prod-actions-group" onclick="event.stopPropagation();">
+                                    <button class="btn-product-cart" onclick="addProductToCart('{{ rp.id }}', '{{ rp.title|escapejs }}', {{ rp.price }}, '{{ rp.category_label|escapejs }}')" title="Add to Cart">
+                                        <i class="fa-solid fa-cart-plus"></i>
+                                    </button>
+                                    <a href="/product/{{ rp.id }}/" class="btn-product-buy">Details</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

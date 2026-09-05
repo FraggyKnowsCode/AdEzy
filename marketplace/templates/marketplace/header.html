@@ -1,217 +1,168 @@
 {% load static %}
-<!-- Navbar -->
-<nav class="navbar">
-    <div class="navbar-content">
-        <a href="/" class="navbar-brand">AdEzy</a>
-        
-        <!-- Search Bar (Smaller and on Left) -->
-        <div class="search__container search__container--compact" style="position: relative;">
-            <input 
-                type="text" 
-                id="search-input" 
-                class="search__input search__input--compact" 
-                placeholder="Search"
-                autocomplete="off"
-            >
-            <div id="search-suggestions" class="search-suggestions" style="display: none;">
-                <!-- Suggestions will be populated by JavaScript -->
+<!-- Navbar matching mockup -->
+<header class="site-header">
+    <div class="container header-container">
+        <!-- Logo -->
+        <a href="/" class="header-logo">
+            Ad<span class="text-gold">Ezy</span>
+        </a>
+
+        <!-- Center Nav Links -->
+        <nav class="nav-center">
+            <ul class="nav-list">
+                <li class="nav-item">
+                    <a href="/" class="nav-link {% if request.path == '/' %}active{% endif %}">Home</a>
+                </li>
+                <li class="nav-item">
+                    <a href="/services/" class="nav-link {% if '/services' in request.path or '/gig/' in request.path %}active{% endif %}">Services</a>
+                </li>
+                <li class="nav-item">
+                    <a href="/products/" class="nav-link {% if '/products' in request.path %}active{% endif %}">Products</a>
+                </li>
+                <li class="nav-item">
+                    <a href="/about/" class="nav-link {% if '/about' in request.path %}active{% endif %}">About Us</a>
+                </li>
+                <li class="nav-item">
+                    <a href="/reviews/" class="nav-link {% if '/reviews' in request.path %}active{% endif %}">Reviews</a>
+                </li>
+                <li class="nav-item">
+                    <a href="/blog/" class="nav-link {% if '/blog' in request.path %}active{% endif %}">Blog</a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Right Icons & User Actions -->
+        <div class="nav-right">
+            {% if user.is_authenticated %}
+            <!-- Messages Toggle Button (WhatsApp Messenger) -->
+            <button class="icon-btn messages-nav-btn" onclick="toggleChatApp()" title="Messages &amp; Chats" aria-label="Messages">
+                <i class="fa-solid fa-comments"></i>
+                <span class="message-badge" id="global-msg-counter" style="display: none;">0</span>
+            </button>
+            {% endif %}
+
+            <!-- Search Icon Button -->
+            <button class="icon-btn search-toggle-btn" onclick="toggleSearchOverlay()" title="Search" aria-label="Search">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </button>
+
+            <!-- Cart / Bag Icon Button -->
+            <button class="icon-btn cart-toggle-btn" onclick="toggleCartModal()" title="Shopping Cart" aria-label="Shopping Cart">
+                <i class="fa-solid fa-bag-shopping"></i>
+                <span class="cart-badge" id="cart-counter" style="display: none;">0</span>
+            </button>
+
+            <!-- User Avatar & Dropdown -->
+            <div class="user-menu-wrapper">
+                <button class="avatar-btn" onclick="toggleUserDropdown(event)" aria-label="User Menu">
+                    <div class="user-avatar-gold">
+                        {% if user.is_authenticated %}
+                            {{ user.username|slice:":1"|upper }}
+                        {% else %}
+                            B
+                        {% endif %}
+                    </div>
+                </button>
+
+                <!-- Dropdown Menu -->
+                <div class="user-dropdown-menu" id="user-dropdown-menu" style="display: none;">
+                    {% if user.is_authenticated %}
+                        <div class="user-dropdown-header">
+                            <div class="user-dropdown-avatar">{{ user.username|slice:":1"|upper }}</div>
+                            <div class="user-dropdown-meta">
+                                <div class="user-dropdown-name">{{ user.username }}</div>
+                                <div class="user-dropdown-email">{{ user.email|default:"user@adezy.com" }}</div>
+                            </div>
+                        </div>
+
+                        <div class="user-dropdown-balance">
+                            <div class="balance-row">
+                                <span><i class="fa-solid fa-wallet"></i> Credits Balance:</span>
+                                <strong><span id="user-balance-dropdown">5,000.00</span> ৳</strong>
+                            </div>
+                            <div class="balance-row secondary">
+                                <span><i class="fa-solid fa-chart-pie"></i> Earnings:</span>
+                                <strong><span id="user-earnings-header">0.00</span> ৳</strong>
+                            </div>
+                        </div>
+
+                        <div class="dropdown-sep"></div>
+
+                        <ul class="dropdown-links">
+                            <li>
+                                <a href="/dashboard/">
+                                    <i class="fa-solid fa-gauge-high"></i> Dashboard
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/imagine/">
+                                    <i class="fa-solid fa-wand-magic-sparkles"></i> AI Studio (Imagine)
+                                </a>
+                            </li>
+                            <li>
+                                <a href="/profile/">
+                                    <i class="fa-solid fa-user-gear"></i> Profile Settings
+                                </a>
+                            </li>
+                            <li>
+                                <a href="#" onclick="event.preventDefault(); showBalanceRequestModal(event);">
+                                    <i class="fa-solid fa-circle-plus"></i> Request Balance
+                                </a>
+                            </li>
+                            <li>
+                                <a href="#" onclick="event.preventDefault(); showCashoutModal(event);">
+                                    <i class="fa-solid fa-money-bill-transfer"></i> Cashout Earnings
+                                </a>
+                            </li>
+                            {% if user.is_staff or user.is_superuser %}
+                                <li>
+                                    <a href="/admin/" target="_blank">
+                                        <i class="fa-solid fa-shield-halved"></i> Django Admin
+                                    </a>
+                                </li>
+                            {% endif %}
+                        </ul>
+
+                        <div class="dropdown-sep"></div>
+
+                        <div class="dropdown-footer">
+                            <a href="/logout/" class="logout-link">
+                                <i class="fa-solid fa-arrow-right-from-bracket"></i> Log Out
+                            </a>
+                        </div>
+                    {% else %}
+                        <div class="auth-dropdown-prompt">
+                            <p>Welcome to <strong>AdEzy</strong></p>
+                            <a href="/login/" class="btn-gold-block">
+                                <i class="fa-solid fa-right-to-bracket"></i> Login
+                            </a>
+                            <a href="/register/" class="btn-dark-block">
+                                <i class="fa-solid fa-user-plus"></i> Create Account
+                            </a>
+                        </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
+    </div>
 
-        <div class="navbar-menu">
-            {% if user.is_authenticated %}
-                <!-- Imagine Link -->
-                <a href="/imagine/" class="navbar-link" title="AI Content Generator">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
-                        <polyline points="21 15 16 10 5 21"></polyline>
-                    </svg>
-                    <span style="margin-left: 6px;">Imagine</span>
-                </a>
-
-                <!-- Categories Icon Dropdown -->
-                <div class="navbar-dropdown categories-dropdown">
-                    <div class="navbar-icon-btn" title="Categories">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <rect x="3" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="3" width="7" height="7"></rect>
-                            <rect x="14" y="14" width="7" height="7"></rect>
-                            <rect x="3" y="14" width="7" height="7"></rect>
-                        </svg>
-                    </div>
-                    <div class="dropdown-menu categories-menu">
-                        <div class="dropdown-header">Browse by Category</div>
-                        <a href="/?category=Social+Media+Marketing#popular-services" class="dropdown-item category-link" data-category="Social Media Marketing">
-                            <span style="font-size: 1.2rem; margin-right: 8px;">📱</span>
-                            Social Media Marketing
-                        </a>
-                        <a href="/?category=Google+Ads#popular-services" class="dropdown-item category-link" data-category="Google Ads">
-                            <span style="font-size: 1.2rem; margin-right: 8px;">🎯</span>
-                            Google Ads
-                        </a>
-                        <a href="/?category=Facebook+Ads#popular-services" class="dropdown-item category-link" data-category="Facebook Ads">
-                            <span style="font-size: 1.2rem; margin-right: 8px;">📊</span>
-                            Facebook Ads
-                        </a>
-                        <a href="/?category=Content+Writing#popular-services" class="dropdown-item category-link" data-category="Content Writing">
-                            <span style="font-size: 1.2rem; margin-right: 8px;">✍️</span>
-                            Content Writing
-                        </a>
-                        <a href="/?category=Graphic+Design#popular-services" class="dropdown-item category-link" data-category="Graphic Design">
-                            <span style="font-size: 1.2rem; margin-right: 8px;">🎨</span>
-                            Graphic Design
-                        </a>
-                        <a href="/?category=Email+Marketing#popular-services" class="dropdown-item category-link" data-category="Email Marketing">
-                            <span style="font-size: 1.2rem; margin-right: 8px;">📧</span>
-                            Email Marketing
-                        </a>
-                        <a href="/?category=SEO+Services#popular-services" class="dropdown-item category-link" data-category="SEO Services">
-                            <span style="font-size: 1.2rem; margin-right: 8px;">🔍</span>
-                            SEO Services
-                        </a>
-                        <a href="/?category=Video+Ads#popular-services" class="dropdown-item category-link" data-category="Video Ads">
-                            <span style="font-size: 1.2rem; margin-right: 8px;">📹</span>
-                            Video Ads
-                        </a>
-                    </div>
-                </div>
-
-                <!-- Messages Icon with Dropdown -->
-                <div class="navbar-dropdown messages-dropdown">
-                    <div class="navbar-icon-btn" title="Messages">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-                        </svg>
-                        <span class="badge" id="messages-badge" style="display: none;">0</span>
-                    </div>
-                    <div class="dropdown-menu messages-menu">
-                        <div class="dropdown-header">Messages</div>
-                        <div id="conversations-list">
-                            <div class="loading" style="text-align: center; padding: 20px; color: #64748b;">
-                                Loading conversations...
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Notifications Icon with Dropdown -->
-                <div class="navbar-dropdown">
-                    <div class="navbar-icon-btn" title="Notifications">
-                        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path>
-                            <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                        </svg>
-                        <span class="badge" id="notifications-badge" style="display: none;">0</span>
-                    </div>
-                    <div class="dropdown-menu notifications-menu">
-                        <div class="dropdown-header" style="display: flex; justify-content: space-between; align-items: center;">
-                            <span>Notifications</span>
-                            <button onclick="markAllNotificationsRead()" style="background: none; border: none; color: var(--gold); cursor: pointer; font-size: 0.85rem; padding: 0;">Mark all read</button>
-                        </div>
-                        <div id="notifications-list">
-                            <div class="loading" style="text-align: center; padding: 20px; color: #64748b;">
-                                Loading notifications...
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Profile Dropdown -->
-                <div class="navbar-dropdown profile-dropdown">
-                    <div class="navbar-profile-btn">
-                        <div class="profile-avatar">{{ user.username|slice:":1"|upper }}</div>
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="6 9 12 15 18 9"></polyline>
-                        </svg>
-                    </div>
-                    <div class="dropdown-menu profile-menu">
-                        <div class="profile-header">
-                            <div class="profile-avatar-large">{{ user.username|slice:":1"|upper }}</div>
-                            <div class="profile-info">
-                                <div class="profile-name">{{ user.username }}</div>
-                                <div class="profile-email">{{ user.email }}</div>
-                            </div>
-                        </div>
-                        <div class="profile-stats">
-                            <div class="stat-item">
-                                <div class="stat-label">Balance (For Buying)</div>
-                                <div class="stat-value">
-                                    <span id="user-balance-dropdown">0.00</span> Taka
-                                    <button onclick="event.preventDefault(); loadUserBalance(); alert('Balance refreshed!');" style="background: none; border: none; cursor: pointer; color: var(--gold); margin-left: 5px; font-size: 0.9rem;" title="Refresh balance">
-                                        🔄
-                                    </button>
-                                </div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-label">Earnings (From Selling)</div>
-                                <div class="stat-value earnings-value"><span id="user-earnings">0.00</span> Taka</div>
-                            </div>
-                        </div>
-                        <div class="dropdown-divider"></div>
-                        <a href="/dashboard/" class="dropdown-item">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="3" y="3" width="7" height="7"></rect>
-                                <rect x="14" y="3" width="7" height="7"></rect>
-                                <rect x="14" y="14" width="7" height="7"></rect>
-                                <rect x="3" y="14" width="7" height="7"></rect>
-                            </svg>
-                            Dashboard
-                        </a>
-                        <a href="#" class="dropdown-item" onclick="event.preventDefault(); showBalanceRequestModal(event);">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <circle cx="12" cy="12" r="10"></circle>
-                                <line x1="12" y1="8" x2="12" y2="16"></line>
-                                <line x1="8" y1="12" x2="16" y2="12"></line>
-                            </svg>
-                            Request Balance
-                        </a>
-                        <a href="#" class="dropdown-item" onclick="event.preventDefault(); showEarningsModal(event);">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <line x1="12" y1="1" x2="12" y2="23"></line>
-                                <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>
-                            </svg>
-                            View Earnings
-                        </a>
-                        <a href="#" class="dropdown-item" onclick="event.preventDefault(); showCashoutModal(event);">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect>
-                                <line x1="1" y1="10" x2="23" y2="10"></line>
-                            </svg>
-                            Cashout Earnings
-                        </a>
-                        <a href="#" class="dropdown-item" onclick="event.preventDefault(); showCashoutHistoryModal(event);">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                                <polyline points="14 2 14 8 20 8"></polyline>
-                                <line x1="16" y1="13" x2="8" y2="13"></line>
-                                <line x1="16" y1="17" x2="8" y2="17"></line>
-                                <polyline points="10 9 9 9 8 9"></polyline>
-                            </svg>
-                            Cashout History
-                        </a>
-                        <a href="/profile/" class="dropdown-item">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                                <circle cx="12" cy="7" r="4"></circle>
-                            </svg>
-                            Profile Settings
-                        </a>
-                        <div class="dropdown-divider"></div>
-                        <a href="/logout/" class="dropdown-item">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-                                <polyline points="16 17 21 12 16 7"></polyline>
-                                <line x1="21" y1="12" x2="9" y2="12"></line>
-                            </svg>
-                            Logout
-                        </a>
-                    </div>
-                </div>
-            {% else %}
-                <a href="/login/" class="btn btn-secondary">Login</a>
-                <a href="/register/" class="btn btn-primary">Sign Up</a>
-            {% endif %}
+    <!-- Hidden Search Overlay -->
+    <div class="search-overlay" id="search-overlay" style="display: none;">
+        <div class="search-overlay-card">
+            <div class="search-bar-inner">
+                <i class="fa-solid fa-magnifying-glass search-bar-icon"></i>
+                <input 
+                    type="text" 
+                    id="search-input" 
+                    class="search-bar-input" 
+                    placeholder="Search services, products, or creators..."
+                    autocomplete="off"
+                >
+                <button class="search-close-btn" onclick="toggleSearchOverlay()">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div id="search-suggestions" class="search-suggestions-dropdown" style="display: none;"></div>
         </div>
     </div>
-</nav>
+</header>

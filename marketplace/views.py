@@ -1,5 +1,6 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404, HttpResponse
+from decimal import Decimal
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_http_methods
 from django.contrib.auth import authenticate, login as auth_login, logout as auth_logout
@@ -7,7 +8,8 @@ from django.contrib.auth.models import User
 from django.contrib import messages
 from django.db import transaction
 from django.utils import timezone
-from .models import Gig, Order, UserProfile, Category, Transaction, Message, BalanceRequest, CashoutRequest
+from .models import Gig, Order, UserProfile, Category, Transaction, Message, BalanceRequest, CashoutRequest, Notification
+from .products_data import get_all_products, get_product_by_id, get_related_products
 import json
 import os
 import requests
@@ -16,23 +18,72 @@ from PIL import Image, ImageDraw, ImageFont, ImageFilter, ImageEnhance
 import io
 from django.core.files.base import ContentFile
 from openai import OpenAI
+from .supabase_auth import (
+    create_or_update_supabase_auth_user,
+    update_supabase_password,
+    verify_supabase_user
+)
 
 def home(request):
     """Render the home page (HTML skeleton)"""
     return render(request, 'marketplace/home.html')
 
+def services_page(request):
+    """Render dedicated Services marketplace page"""
+    categories = Category.objects.all()
+    return render(request, 'marketplace/services.html', {'categories': categories})
+
+def products_page(request):
+    """Render dedicated Products catalog page with categorized filters"""
+    products = get_all_products()
+    return render(request, 'marketplace/products.html', {'products': products})
+
+def product_detail_page(request, product_id):
+    """Render dedicated Digital Product detail page"""
+    product = get_product_by_id(product_id)
+    if not product:
+        raise Http404("Product not found")
+    related_products = get_related_products(product_id, limit=4)
+    return render(request, 'marketplace/product_detail.html', {
+        'product': product,
+        'related_products': related_products,
+        'product_id': product_id
+    })
+
+def about_page(request):
+    """Render dedicated About Us page"""
+    return render(request, 'marketplace/about.html')
+
+def reviews_page(request):
+    """Render dedicated Client Reviews page"""
+    return render(request, 'marketplace/reviews.html')
+
+def blog_page(request):
+    """Render dedicated Blog and Growth resources page"""
+    return render(request, 'marketplace/blog.html')
+
 def login_view(request):
-    """Handle user login"""
+    """Handle user login with username or email, integrating Supabase Auth"""
     if request.method == 'POST':
-        username = request.POST.get('username')
-        password = request.POST.get('password')
+        login_input = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
+        
+        # Support login by email or username
+        if '@' in login_input:
+            user_obj = User.objects.filter(email__iexact=login_input).first()
+            username = user_obj.username if user_obj else login_input
+        else:
+            username = login_input
+
         user = authenticate(request, username=username, password=password)
         
         if user is not None:
             auth_login(request, user)
+            # Update Supabase Auth last sign in
+            verify_supabase_user(user.email or user.username, password)
             return redirect('home')
         else:
-            messages.error(request, 'Invalid username or password')
+            messages.error(request, 'Invalid username/email or password')
     
     return render(request, 'marketplace/login.html')
 
@@ -42,18 +93,31 @@ def logout_view(request):
     return redirect('home')
 
 def register_view(request):
-    """Handle user registration"""
+    """Handle user registration and sync directly with Supabase Auth"""
     if request.method == 'POST':
-        username = request.POST.get('username')
-        email = request.POST.get('email')
-        password = request.POST.get('password')
-        password2 = request.POST.get('password2')
+        username = request.POST.get('username', '').strip()
+        email = request.POST.get('email', '').strip()
+        password = request.POST.get('password', '')
+        password2 = request.POST.get('password2', '')
         
-        if password != password2:
+        if not email:
+            messages.error(request, 'Email address is required for registration')
+        elif password != password2:
             messages.error(request, 'Passwords do not match')
-        elif User.objects.filter(username=username).exists():
+        elif len(password) < 6:
+            messages.error(request, 'Password must be at least 6 characters')
+        elif User.objects.filter(username__iexact=username).exists():
             messages.error(request, 'Username already exists')
+        elif User.objects.filter(email__iexact=email).exists():
+            messages.error(request, 'Email already registered')
         else:
+            # 1. Register in Supabase Auth (auth.users)
+            success, err, _ = create_or_update_supabase_auth_user(email=email, password=password, username=username)
+            if not success:
+                messages.error(request, f'Failed to create account in Supabase: {err}')
+                return render(request, 'marketplace/register.html')
+
+            # 2. Create Django User & Profile
             user = User.objects.create_user(username=username, email=email, password=password)
             UserProfile.objects.create(user=user, virtual_credits=5000.00)
             auth_login(request, user)
@@ -64,7 +128,8 @@ def register_view(request):
 
 def gig_detail(request, gig_id):
     """Render the gig detail page"""
-    return render(request, 'marketplace/gig_detail.html')
+    gig = get_object_or_404(Gig, id=gig_id, status='active')
+    return render(request, 'marketplace/gig_detail.html', {'gig': gig, 'gig_id': gig_id})
 
 @login_required
 def profile(request):
@@ -105,10 +170,18 @@ def profile(request):
                 else:
                     request.user.set_password(new_password)
                     request.user.save()
+                    update_supabase_password(request.user.email, new_password)
                     auth_login(request, request.user)  # Re-login after password change
                     messages.success(request, 'Password updated successfully!')
                     return redirect('profile')
             
+            # Sync username/email update to Supabase Auth metadata
+            create_or_update_supabase_auth_user(
+                email=request.user.email,
+                password="",
+                username=request.user.username,
+                display_name=request.user.get_full_name()
+            )
             messages.success(request, 'Profile updated successfully!')
             return redirect('profile')
     
@@ -208,13 +281,16 @@ def create_order_json(request):
         gig = get_object_or_404(Gig, id=gig_id, status='active')
         
         # Get buyer profile
-        buyer_profile = get_object_or_404(UserProfile, user=request.user)
+        buyer_profile, _ = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={'virtual_credits': 5000.00}
+        )
         
         # Check if user has enough credits
         if buyer_profile.virtual_credits < gig.price:
             return JsonResponse({
                 'success': False,
-                'error': 'Insufficient Taka'
+                'error': f'Insufficient balance. You need ৳ {gig.price} BDT, but have ৳ {buyer_profile.virtual_credits} BDT.'
             }, status=400)
         
         # Check if buyer is trying to buy their own gig
@@ -230,12 +306,7 @@ def create_order_json(request):
             buyer_profile.virtual_credits -= gig.price
             buyer_profile.save()
             
-            # Add credits to seller
-            seller_profile = get_object_or_404(UserProfile, user=gig.seller)
-            seller_profile.virtual_credits += gig.price
-            seller_profile.save()
-            
-            # Create order
+            # Create order (pending)
             order = Order.objects.create(
                 gig=gig,
                 buyer=request.user,
@@ -245,22 +316,13 @@ def create_order_json(request):
                 status='pending'
             )
             
-            # Create transaction records
+            # Create debit transaction record for buyer
             Transaction.objects.create(
                 user=request.user,
                 transaction_type='debit',
                 amount=gig.price,
                 balance_after=buyer_profile.virtual_credits,
                 description=f"Purchase: {gig.title}",
-                order=order
-            )
-            
-            Transaction.objects.create(
-                user=gig.seller,
-                transaction_type='earning',
-                amount=gig.price,
-                balance_after=seller_profile.virtual_credits,
-                description=f"Sale: {gig.title}",
                 order=order
             )
             
@@ -294,14 +356,188 @@ def create_order_json(request):
 
 
 @login_required
+@require_http_methods(["POST"])
+def checkout_cart_json(request):
+    """
+    API endpoint: Batch checkout shopping cart items (services + digital products)
+    URL: /api/cart/checkout/
+    """
+    try:
+        data = json.loads(request.body)
+        items = data.get('items', [])
+        if not items:
+            return JsonResponse({'success': False, 'error': 'Your cart is empty.'}, status=400)
+
+        total_price = sum(Decimal(str(item.get('price', 0))) for item in items)
+
+        buyer_profile, _ = UserProfile.objects.get_or_create(
+            user=request.user,
+            defaults={'virtual_credits': 5000.00}
+        )
+
+        if buyer_profile.virtual_credits < total_price:
+            return JsonResponse({
+                'success': False,
+                'error': f'Insufficient balance. Cart total is {total_price:.2f} ৳, but your balance is {buyer_profile.virtual_credits:.2f} ৳.'
+            }, status=400)
+
+        created_orders = []
+        purchased_products = []
+
+        with transaction.atomic():
+            for item in items:
+                item_type = item.get('type', 'service')
+                item_id = item.get('id')
+                item_price = Decimal(str(item.get('price', 0)))
+                item_title = item.get('title', 'Item')
+
+                if item_type == 'service':
+                    gig = Gig.objects.filter(id=int(item_id), status='active').first()
+                    if not gig:
+                        continue
+                    if gig.seller == request.user:
+                        return JsonResponse({
+                            'success': False,
+                            'error': f'You cannot order your own service: "{gig.title}"'
+                        }, status=400)
+
+                    # Deduct credits from buyer
+                    buyer_profile.virtual_credits -= item_price
+                    buyer_profile.save()
+
+                    # Create gig order (pending)
+                    order = Order.objects.create(
+                        gig=gig,
+                        buyer=request.user,
+                        seller=gig.seller,
+                        price=item_price,
+                        requirements='Order placed through AdEzy Cart Checkout',
+                        status='pending'
+                    )
+
+                    # Debit transaction record for buyer
+                    Transaction.objects.create(
+                        user=request.user,
+                        transaction_type='debit',
+                        amount=item_price,
+                        balance_after=buyer_profile.virtual_credits,
+                        description=f"Purchase: {gig.title}",
+                        order=order
+                    )
+
+                    # Seller notification
+                    Notification.objects.create(
+                        user=gig.seller,
+                        notification_type='order_placed',
+                        title='New Order Placed',
+                        message=f"{request.user.username} ordered {gig.title} via Cart",
+                        order=order
+                    )
+
+                    created_orders.append({
+                        'id': order.id,
+                        'title': gig.title,
+                        'price': float(item_price),
+                        'delivery_time': gig.delivery_time
+                    })
+
+                else:
+                    # Digital product purchase
+                    buyer_profile.virtual_credits -= item_price
+                    buyer_profile.save()
+
+                    Transaction.objects.create(
+                        user=request.user,
+                        transaction_type='debit',
+                        amount=item_price,
+                        balance_after=buyer_profile.virtual_credits,
+                        description=f"Digital Product: {item_title}"
+                    )
+
+                    purchased_products.append({
+                        'id': item_id,
+                        'title': item_title,
+                        'price': float(item_price),
+                        'download_url': f"/api/product/{item_id}/download/"
+                    })
+
+        return JsonResponse({
+            'success': True,
+            'message': 'Cart purchase completed successfully!',
+            'new_balance': float(buyer_profile.virtual_credits),
+            'orders': created_orders,
+            'products': purchased_products
+        })
+
+    except Exception as e:
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+
+
+@login_required
+def download_product_api(request, product_id):
+    """
+    Download digital product license and package starter
+    """
+    product = get_product_by_id(product_id)
+    if not product:
+        raise Http404("Product not found")
+
+    content = f"""===================================================================
+AdEzy Digital Product Delivery & Verification
+===================================================================
+Product:       {product['title']}
+Category:      {product['category_label']}
+Licensee:      {request.user.username} ({request.user.email})
+License Key:   ADZY-{request.user.id:04d}-{product_id.upper()}-VERIFIED
+File Specs:    {product['file_size']} | {product['file_format']}
+Timestamp:     {timezone.now().strftime('%Y-%m-%d %H:%M:%S UTC')}
+
+WHAT'S INCLUDED:
+{chr(10).join('- ' + f for f in product['features'])}
+
+ACCESS & CLOUD DOWNLOAD:
+Your complete package has been prepared on our high-speed CDN.
+Access link: https://cdn.adezy.com/packages/{product_id}/full-bundle.zip
+(All future updates are automatically pushed to this access key)
+
+Need help? Contact Priority Creator Support: support@adezy.com
+All rights reserved by Fahad Sidker.
+===================================================================
+"""
+    response = HttpResponse(content, content_type='text/plain; charset=utf-8')
+    response['Content-Disposition'] = f'attachment; filename="AdEzy-{product_id}-Package.txt"'
+    return response
+
+
+@login_required
 def get_user_balance_json(request):
     """
-    API endpoint: Get current user's virtual credit balance
+    API endpoint: Get current user's virtual credit balance and seller earnings
     URL: /api/user/balance/
     """
-    profile = get_object_or_404(UserProfile, user=request.user)
+    from django.db.models import Sum
+    profile, _ = UserProfile.objects.get_or_create(
+        user=request.user,
+        defaults={'virtual_credits': 5000.00}
+    )
+    
+    # Calculate seller earnings from completed orders
+    total_earnings = Order.objects.filter(
+        seller=request.user,
+        status='completed'
+    ).aggregate(total=Sum('price'))['total'] or 0
+    
+    total_cashed_out = CashoutRequest.objects.filter(
+        user=request.user,
+        status='approved'
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    available_earnings = float(total_earnings) - float(total_cashed_out)
+
     return JsonResponse({
         'balance': float(profile.virtual_credits),
+        'earnings': available_earnings,
+        'total_earnings': float(total_earnings),
         'username': request.user.username
     })
 
@@ -430,145 +666,11 @@ def imagine_view(request):
 
 @login_required
 def generate_poster_api(request):
-    """Generate poster using AI"""
-    if request.method != 'POST':
-        return JsonResponse({'success': False, 'error': 'Method not allowed'}, status=405)
-    
-    try:
-        product_image = request.FILES.get('product_image')
-        logo_image = request.FILES.get('logo_image')
-        description = request.POST.get('description', '')
-        
-        if not product_image or not description:
-            return JsonResponse({'success': False, 'error': 'Product image and description are required'}, status=400)
-        
-        # Configure Gemini API for caption generation
-        gemini_key = getattr(settings, 'GEMINI_API_KEY', None)
-        if not gemini_key:
-            return JsonResponse({'success': False, 'error': 'API key not configured'}, status=500)
-        
-        # Step 1: Generate AI caption using Gemini
-        caption_prompt = f"""Create a catchy, engaging social media caption for a poster with this description: {description}
-        
-        Requirements:
-        - Make it short and punchy (2-3 sentences max)
-        - Include relevant emojis
-        - Add 3-5 relevant hashtags at the end
-        - Make it shareable and attention-grabbing
-        - Focus on benefits and call-to-action"""
-        
-        try:
-            response = requests.post(
-                'https://openrouter.ai/api/v1/chat/completions',
-                headers={
-                    'Authorization': f'Bearer {gemini_key}',
-                    'HTTP-Referer': 'https://adezy.com',
-                    'X-Title': 'AdEzy AI Generator',
-                    'Content-Type': 'application/json'
-                },
-                json={
-                    'model': 'google/gemini-2.0-flash-exp:free',
-                    'messages': [{'role': 'user', 'content': caption_prompt}]
-                },
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                ai_caption = result['choices'][0]['message']['content']
-            else:
-                ai_caption = "Check out this amazing product! 🌟 #ad #product #amazing"
-        except Exception as e:
-            print(f"Caption generation error: {e}")
-            ai_caption = "Check out this amazing product! 🌟 #ad #product #amazing"
-        
-        # Step 2: Generate poster image using Seedream
-        api_key = getattr(settings, 'SEEDREAM_API_KEY', None)
-        
-        # Read and encode the product image
-        product_image.seek(0)
-        product_image_data = product_image.read()
-        
-        # Build the poster generation prompt
-        poster_prompt = f"""Create a professional, eye-catching social media poster (1080x1080px square format) with the following specifications:
-
-Description: {description}
-
-Design Requirements:
-- Modern and clean design with gradient backgrounds
-- Feature the product prominently in the center
-- Add decorative elements like shapes, lines, or patterns
-- Use bold, readable typography for any text
-- Include empty space for text overlays
-- Professional color scheme that matches the product
-- High quality, print-ready design
-- Instagram/Facebook ready format"""
-        
-        # Prepare the content for image generation
-        if logo_image:
-            logo_image.seek(0)
-            logo_image_data = logo_image.read()
-            
-            # Include both product and logo in generation
-            generation_parts = [
-                poster_prompt,
-                {"mime_type": product_image.content_type, "data": product_image_data},
-                "Include this logo in the top corner:",
-                {"mime_type": logo_image.content_type, "data": logo_image_data}
-            ]
-        else:
-            # Only product image
-            generation_parts = [
-                poster_prompt,
-                {"mime_type": product_image.content_type, "data": product_image_data}
-            ]
-        
-        # Generate the poster using Seedream
-        # For image generation with Seedream, we'll use a different approach
-        # Since Seedream primarily focuses on text generation, we'll create enhanced prompts
-        image_response = None  # Placeholder for now
-        
-        # Extract generated image from response
-        # The response typically contains base64 encoded image data
-        generated_image_data = None
-        
-        if hasattr(image_response, 'parts'):
-            for part in image_response.parts:
-                if hasattr(part, 'inline_data'):
-                    generated_image_data = part.inline_data.data
-                    break
-        
-        if not generated_image_data:
-            # Fallback to PIL-based generation if AI generation fails
-            poster = create_poster_image(product_image, logo_image, description)
-            poster_filename = f'poster_{request.user.id}_{timezone.now().timestamp()}.jpg'
-            poster_path = os.path.join(settings.MEDIA_ROOT, 'posters', poster_filename)
-            os.makedirs(os.path.dirname(poster_path), exist_ok=True)
-            poster.save(poster_path, 'JPEG', quality=95)
-        else:
-            # Save the AI-generated poster
-            import base64
-            poster_filename = f'poster_{request.user.id}_{timezone.now().timestamp()}.jpg'
-            poster_path = os.path.join(settings.MEDIA_ROOT, 'posters', poster_filename)
-            os.makedirs(os.path.dirname(poster_path), exist_ok=True)
-            
-            # Decode and save the image
-            with open(poster_path, 'wb') as f:
-                f.write(base64.b64decode(generated_image_data))
-        
-        poster_url = os.path.join(settings.MEDIA_URL, 'posters', poster_filename)
-        
-        return JsonResponse({
-            'success': True,
-            'poster_url': poster_url,
-            'description': ai_caption
-        })
-        
-    except Exception as e:
-        import traceback
-        error_details = traceback.format_exc()
-        print(f"Error generating poster: {error_details}")
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    """Generate poster using AI - currently unavailable due to maintenance"""
+    return JsonResponse({
+        'success': False,
+        'error': 'AI Imagine services are temporarily unavailable as the AI API is undergoing maintenance. Please check back soon.'
+    }, status=503)
 
 def create_poster_image(product_image, logo_image, description):
     """Create a beautiful poster with product image and logo"""
@@ -710,6 +812,38 @@ def update_order_status_json(request, order_id):
         order.status = new_status
         if new_status == 'completed':
             order.completed_at = timezone.now()
+            # Record earning transaction for the seller
+            seller_profile, _ = UserProfile.objects.get_or_create(
+                user=order.seller,
+                defaults={'virtual_credits': 5000.00}
+            )
+            Transaction.objects.create(
+                user=order.seller,
+                transaction_type='earning',
+                amount=order.price,
+                balance_after=seller_profile.virtual_credits,  # Credits balance unchanged; earnings updated
+                description=f"Earnings from completed Order #{order.id}: {order.gig.title}",
+                order=order
+            )
+            if order.gig:
+                order.gig.total_orders = (order.gig.total_orders or 0) + 1
+                order.gig.save()
+        elif new_status == 'cancelled':
+            # Refund buyer's credits if order is cancelled
+            buyer_profile, _ = UserProfile.objects.get_or_create(
+                user=order.buyer,
+                defaults={'virtual_credits': 5000.00}
+            )
+            buyer_profile.virtual_credits += order.price
+            buyer_profile.save()
+            Transaction.objects.create(
+                user=order.buyer,
+                transaction_type='refund',
+                amount=order.price,
+                balance_after=buyer_profile.virtual_credits,
+                description=f"Refund for cancelled Order #{order.id}: {order.gig.title}",
+                order=order
+            )
         order.save()
         
         # Create notification
@@ -775,52 +909,112 @@ def order_detail(request, order_id):
 @login_required
 @require_http_methods(["POST"])
 def send_message_json(request, order_id):
-    """Send a message for an order"""
+    """Send a message for an order (backward compatible)"""
+    return send_chat_message_json(request, order_id=order_id)
+
+@login_required
+@require_http_methods(["POST"])
+def send_chat_message_json(request, order_id=None):
+    """
+    WhatsApp Messenger send message endpoint:
+    Supports text, image, and document file attachments.
+    """
     try:
-        data = json.loads(request.body)
-        message_text = data.get('message', '').strip()
+        message_text = ''
+        target_username = None
+        target_order_id = order_id
         
-        if not message_text:
-            return JsonResponse({
-                'success': False,
-                'error': 'Message cannot be empty'
-            }, status=400)
+        # Check if multipart form or JSON
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            message_text = request.POST.get('message', '').strip()
+            target_username = request.POST.get('username', '').strip() or None
+            if not target_order_id and request.POST.get('order_id'):
+                target_order_id = int(request.POST.get('order_id'))
+        else:
+            try:
+                data = json.loads(request.body)
+                message_text = data.get('message', '').strip()
+                target_username = data.get('username', '').strip() or None
+                if not target_order_id and data.get('order_id'):
+                    target_order_id = int(data.get('order_id'))
+            except Exception:
+                pass
         
-        order = get_object_or_404(Order, id=order_id)
+        attachment = request.FILES.get('attachment')
+        if not message_text and not attachment:
+            return JsonResponse({'success': False, 'error': 'Please enter a message or select an attachment'}, status=400)
+            
+        attachment_name = None
+        attachment_type = None
+        if attachment:
+            attachment_name = attachment.name
+            ext = os.path.splitext(attachment.name)[1].lower()
+            if ext in ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg']:
+                attachment_type = 'image'
+            else:
+                attachment_type = 'document'
+                
+        order = None
+        recipient = None
         
-        # Check if user is buyer or seller
-        if request.user != order.buyer and request.user != order.seller:
-            return JsonResponse({
-                'success': False,
-                'error': 'You do not have permission to message this order'
-            }, status=403)
-        
-        message = Message.objects.create(
+        if target_order_id:
+            order = get_object_or_404(Order, id=target_order_id)
+            if request.user != order.buyer and request.user != order.seller:
+                return JsonResponse({'success': False, 'error': 'You do not have permission to message this order'}, status=403)
+            recipient = order.seller if request.user == order.buyer else order.buyer
+        elif target_username:
+            recipient = get_object_or_404(User, username=target_username)
+            if recipient == request.user:
+                return JsonResponse({'success': False, 'error': 'Cannot send messages to yourself'}, status=400)
+        else:
+            return JsonResponse({'success': False, 'error': 'Target order or username required'}, status=400)
+            
+        msg = Message.objects.create(
             order=order,
             sender=request.user,
-            message=message_text
+            recipient=recipient,
+            message=message_text,
+            attachment=attachment,
+            attachment_name=attachment_name,
+            attachment_type=attachment_type
+        )
+        
+        # Notify recipient
+        notif_msg = message_text[:80] if message_text else f"Sent an attachment ({attachment_name})"
+        Notification.objects.create(
+            user=recipient,
+            notification_type='message_received',
+            title=f"New message from {request.user.username}",
+            message=notif_msg,
+            order=order
         )
         
         return JsonResponse({
             'success': True,
-            'message_id': message.id,
-            'sender': request.user.username,
-            'message': message.message,
-            'created_at': message.created_at.isoformat()
+            'message': {
+                'id': msg.id,
+                'sender': msg.sender.username,
+                'sender_avatar': msg.sender.username[0].upper(),
+                'message': msg.message,
+                'has_attachment': bool(msg.attachment),
+                'attachment_url': msg.attachment.url if msg.attachment else None,
+                'attachment_name': msg.attachment_name,
+                'attachment_type': msg.attachment_type,
+                'created_at': msg.created_at.isoformat(),
+                'time_formatted': msg.created_at.strftime('%I:%M %p'),
+                'is_own': True,
+                'is_read': False
+            }
         })
-        
     except Exception as e:
-        return JsonResponse({
-            'success': False,
-            'error': str(e)
-        }, status=500)
+        return JsonResponse({'success': False, 'error': str(e)}, status=500)
 
 @login_required
 def get_notifications_json(request):
-    """Get all notifications for the current user"""
+    """Get all notifications for the current user (optimized batch query)"""
     from .models import Notification
     
-    notifications = Notification.objects.filter(user=request.user)[:20]
+    notifications = list(Notification.objects.filter(user=request.user).select_related('order')[:20])
     
     notifications_data = []
     for notif in notifications:
@@ -866,83 +1060,268 @@ def mark_all_notifications_read_json(request):
 
 @login_required
 def get_conversations_json(request):
-    """Get all conversations (orders with messages) for the current user"""
-    from django.db.models import Q, Count, Max
-    
-    # Get orders where user is buyer or seller and has messages
-    orders = Order.objects.filter(
+    """
+    Get unique WhatsApp-style conversations grouped by contact (person).
+    Each person appears EXACTLY ONCE in the list.
+    Optimized to run in O(1) batch queries instead of O(N) per-contact loops.
+    """
+    from django.db.models import Q, Count
+
+    # 1. Collect all distinct contacts from both direct messages and orders
+    message_user_ids = Message.objects.filter(
+        Q(sender=request.user) | Q(recipient=request.user)
+    ).values_list('sender_id', 'recipient_id')
+
+    related_user_ids = set()
+    for s_id, r_id in message_user_ids:
+        if s_id and s_id != request.user.id:
+            related_user_ids.add(s_id)
+        if r_id and r_id != request.user.id:
+            related_user_ids.add(r_id)
+
+    order_user_ids = Order.objects.filter(
         Q(buyer=request.user) | Q(seller=request.user)
-    ).annotate(
-        message_count=Count('messages'),
-        last_message_time=Max('messages__created_at')
-    ).filter(message_count__gt=0).order_by('-last_message_time')
-    
+    ).values_list('buyer_id', 'seller_id')
+    for b_id, s_id in order_user_ids:
+        if b_id and b_id != request.user.id:
+            related_user_ids.add(b_id)
+        if s_id and s_id != request.user.id:
+            related_user_ids.add(s_id)
+
     conversations = []
-    for order in orders:
-        # Get last message
-        last_message = order.messages.last()
-        
-        # Count unread messages
-        unread_count = order.messages.filter(
+
+    if related_user_ids:
+        # Pre-fetch all relevant users in 1 batch query
+        users_by_id = {u.id: u for u in User.objects.filter(id__in=related_user_ids)}
+
+        # Pre-fetch unread counts for all contacts in 1 batch query
+        unread_counts_qs = Message.objects.filter(
+            recipient=request.user,
+            sender_id__in=related_user_ids,
             is_read=False
-        ).exclude(sender=request.user).count()
-        
-        # Determine the other party
-        other_user = order.seller if request.user == order.buyer else order.buyer
-        
-        conversations.append({
-            'order_id': order.id,
-            'gig_title': order.gig.title if order.gig else 'Order #' + str(order.id),
-            'other_user': other_user.username,
-            'last_message': last_message.message[:50] + ('...' if len(last_message.message) > 50 else ''),
-            'last_message_time': last_message.created_at.isoformat(),
-            'unread_count': unread_count,
-            'status': order.status
-        })
-    
+        ).values('sender_id').annotate(count=Count('id'))
+        unread_map = {item['sender_id']: item['count'] for item in unread_counts_qs}
+
+        # Pre-fetch latest order for each contact in 1 batch query
+        all_orders = Order.objects.filter(
+            (Q(buyer=request.user, seller_id__in=related_user_ids) | Q(seller=request.user, buyer_id__in=related_user_ids))
+        ).select_related('gig').order_by('-created_at')
+        latest_order_map = {}
+        for ord_item in all_orders:
+            other_id = ord_item.seller_id if ord_item.buyer_id == request.user.id else ord_item.buyer_id
+            if other_id not in latest_order_map:
+                latest_order_map[other_id] = ord_item
+
+        # Pre-fetch latest message for each contact in 1 batch query
+        all_msgs = Message.objects.filter(
+            (Q(sender=request.user, recipient_id__in=related_user_ids) | Q(sender_id__in=related_user_ids, recipient=request.user)) |
+            (Q(order__buyer=request.user, order__seller_id__in=related_user_ids) | Q(order__seller=request.user, order__buyer_id__in=related_user_ids))
+        ).select_related('order').order_by('created_at')
+
+        last_msg_map = {}
+        for m in all_msgs:
+            if m.sender_id == request.user.id:
+                other_id = m.recipient_id or (m.order.seller_id if (m.order and m.order.buyer_id == request.user.id) else (m.order.buyer_id if m.order else None))
+            else:
+                other_id = m.sender_id
+            if other_id and other_id in related_user_ids:
+                last_msg_map[other_id] = m
+
+        now_iso = timezone.now().isoformat()
+        for other_user_id in related_user_ids:
+            other_user = users_by_id.get(other_user_id)
+            if not other_user:
+                continue
+
+            last_msg = last_msg_map.get(other_user_id)
+            unread_count = unread_map.get(other_user_id, 0)
+            latest_order = latest_order_map.get(other_user_id)
+
+            last_text = "No messages yet"
+            last_time = now_iso
+            has_attachment = False
+
+            if last_msg:
+                last_time = last_msg.created_at.isoformat()
+                if last_msg.message:
+                    last_text = (last_msg.message[:45] + '...') if len(last_msg.message) > 45 else last_msg.message
+                elif last_msg.attachment:
+                    last_text = "📎 " + (last_msg.attachment_name or "Attachment")
+                    has_attachment = True
+            elif latest_order:
+                last_time = latest_order.created_at.isoformat()
+                last_text = f"Order #{latest_order.id} placed"
+
+            order_title = latest_order.gig.title if (latest_order and latest_order.gig) else (f"Order #{latest_order.id}" if latest_order else None)
+
+            conversations.append({
+                'chat_id': f"user_{other_user.username}",
+                'other_user': other_user.username,
+                'other_user_avatar': other_user.username[0].upper(),
+                'other_user_name': other_user.get_full_name() or other_user.username,
+                'latest_order_id': latest_order.id if latest_order else None,
+                'latest_order_title': order_title,
+                'has_order': bool(latest_order),
+                'status': 'Online',
+                'last_message': last_text,
+                'last_message_time': last_time,
+                'has_attachment': has_attachment,
+                'unread_count': unread_count
+            })
+
+    # If no conversations yet, add top creators as suggestions
+    if len(conversations) == 0:
+        top_sellers = User.objects.filter(gigs__status='active').exclude(id=request.user.id).distinct().prefetch_related('gigs')[:4]
+        for s in top_sellers:
+            gig = s.gigs.filter(status='active').first()
+            conversations.append({
+                'chat_id': f"user_{s.username}",
+                'other_user': s.username,
+                'other_user_avatar': s.username[0].upper(),
+                'other_user_name': s.get_full_name() or s.username,
+                'latest_order_id': None,
+                'latest_order_title': gig.title if gig else 'Top Specialist',
+                'has_order': False,
+                'status': 'Online',
+                'last_message': 'Click to start chatting',
+                'last_message_time': timezone.now().isoformat(),
+                'has_attachment': False,
+                'unread_count': 0
+            })
+
+    # Sort conversations by last_message_time descending
+    conversations.sort(key=lambda c: c['last_message_time'], reverse=True)
+    total_unread = sum(c['unread_count'] for c in conversations)
+
     return JsonResponse({
         'conversations': conversations,
-        'total_unread': sum(c['unread_count'] for c in conversations)
+        'total_unread': total_unread
     })
 
+
 @login_required
-def get_order_messages_json(request, order_id):
-    """Get all messages for an order"""
-    order = get_object_or_404(Order, id=order_id)
-    
-    # Check if user is buyer or seller
-    if request.user != order.buyer and request.user != order.seller:
-        return JsonResponse({
-            'success': False,
-            'error': 'You do not have permission to view these messages'
-        }, status=403)
-    
-    # Mark messages as read
-    order.messages.filter(is_read=False).exclude(sender=request.user).update(is_read=True)
-    
+def get_chat_messages_json(request):
+    """
+    Get messages for a conversation between the current user and the target contact.
+    Guarantees that messages sent to User A never show in User B's thread.
+    Optimized with select_related to prevent N+1 queries.
+    """
+    from django.db.models import Q
+
+    username = request.GET.get('username')
+    order_id = request.GET.get('order_id')
+
+    other_user = None
+    order_info = None
+
+    if username:
+        other_user = get_object_or_404(User, username=username)
+    elif order_id and order_id != 'null':
+        order = get_object_or_404(Order.objects.select_related('buyer', 'seller', 'gig'), id=int(order_id))
+        if request.user != order.buyer and request.user != order.seller:
+            return JsonResponse({'success': False, 'error': 'Unauthorized'}, status=403)
+        other_user = order.seller if request.user == order.buyer else order.buyer
+        order_info = {
+            'id': order.id,
+            'gig_title': order.gig.title if order.gig else f"Order #{order.id}",
+            'price': float(order.price),
+            'status': order.status
+        }
+    else:
+        return JsonResponse({'success': False, 'error': 'Username or order_id required'}, status=400)
+
+    if not order_info:
+        # Find latest order between these two users if any
+        latest_order = Order.objects.filter(
+            (Q(buyer=request.user, seller=other_user) | Q(buyer=other_user, seller=request.user))
+        ).select_related('gig').order_by('-created_at').first()
+        if latest_order:
+            order_info = {
+                'id': latest_order.id,
+                'gig_title': latest_order.gig.title if latest_order.gig else f"Order #{latest_order.id}",
+                'price': float(latest_order.price),
+                'status': latest_order.status
+            }
+
+    # Query strictly messages between request.user and other_user with select_related
+    messages_qs = Message.objects.filter(
+        (Q(sender=request.user, recipient=other_user) | Q(sender=other_user, recipient=request.user)) |
+        (Q(order__buyer=request.user, order__seller=other_user) | Q(order__buyer=other_user, order__seller=request.user))
+    ).select_related('sender').distinct().order_by('created_at')
+
+    # Mark incoming unread messages from this contact as read efficiently
+    Message.objects.filter(
+        sender=other_user,
+        recipient=request.user,
+        is_read=False
+    ).update(is_read=True)
+
     messages_data = []
-    for msg in order.messages.all():
+    for msg in messages_qs:
         messages_data.append({
             'id': msg.id,
             'sender': msg.sender.username,
+            'sender_avatar': msg.sender.username[0].upper(),
             'message': msg.message,
+            'has_attachment': bool(msg.attachment),
+            'attachment_url': msg.attachment.url if msg.attachment else None,
+            'attachment_name': msg.attachment_name,
+            'attachment_type': msg.attachment_type,
             'created_at': msg.created_at.isoformat(),
-            'is_own': msg.sender == request.user
+            'time_formatted': msg.created_at.strftime('%I:%M %p'),
+            'date_formatted': msg.created_at.strftime('%b %d, %Y'),
+            'is_own': msg.sender == request.user,
+            'is_read': msg.is_read
         })
-    
-    # Get order details
-    other_user = order.seller if request.user == order.buyer else order.buyer
-    
+
     return JsonResponse({
+        'success': True,
         'messages': messages_data,
-        'order_info': {
-            'id': order.id,
-            'gig_title': order.gig.title if order.gig else 'Order #' + str(order.id),
-            'other_user': other_user.username,
-            'status': order.status,
-            'price': float(order.price)
-        }
+        'other_user': {
+            'username': other_user.username,
+            'avatar': other_user.username[0].upper(),
+            'name': other_user.get_full_name() or other_user.username,
+            'status': 'Online'
+        },
+        'order_info': order_info
     })
+
+
+
+@login_required
+def get_order_messages_json(request, order_id):
+    """Legacy endpoint wrapper for order messages"""
+    request.GET = request.GET.copy()
+    request.GET['order_id'] = str(order_id)
+    return get_chat_messages_json(request)
+
+
+@login_required
+def get_chat_contacts_json(request):
+    """
+    Get list of potential contacts (active sellers/creators) for starting a new chat.
+    Optimized to run in 1 single query instead of N queries per seller.
+    """
+    gigs = Gig.objects.filter(
+        status='active'
+    ).exclude(seller=request.user).select_related('seller', 'category')
+    
+    seen_sellers = set()
+    contacts = []
+    for gig in gigs:
+        seller = gig.seller
+        if seller.id not in seen_sellers:
+            seen_sellers.add(seller.id)
+            contacts.append({
+                'username': seller.username,
+                'avatar': seller.username[0].upper(),
+                'specialty': gig.category.name if gig.category else 'Specialist',
+                'gig_title': gig.title
+            })
+            if len(contacts) >= 20:
+                break
+        
+    return JsonResponse({'contacts': contacts})
 
 
 def get_categories_json(request):
@@ -973,7 +1352,7 @@ def get_seller_earnings_json(request):
     completed_orders = Order.objects.filter(
         seller=request.user, 
         status='completed'
-    ).select_related('gig')
+    ).select_related('gig', 'buyer')
     
     total_earnings = 0
     earnings_by_gig = {}
@@ -1006,8 +1385,17 @@ def get_seller_earnings_json(request):
     # Sort recent earnings by date (most recent first)
     recent_earnings = sorted(recent_earnings, key=lambda x: x['order_id'], reverse=True)[:10]
     
+    # Calculate available earnings after approved cashouts
+    from django.db.models import Sum
+    total_cashed_out = CashoutRequest.objects.filter(
+        user=request.user,
+        status='approved'
+    ).aggregate(total=Sum('amount'))['total'] or 0
+    available_earnings = float(total_earnings) - float(total_cashed_out)
+
     return JsonResponse({
-        'total_earnings': total_earnings,
+        'total_earnings': float(total_earnings),
+        'available_earnings': available_earnings,
         'total_orders': len(completed_orders),
         'earnings_by_gig': list(earnings_by_gig.values()),
         'recent_earnings': recent_earnings
@@ -1173,471 +1561,17 @@ def get_available_earnings(request):
 @login_required
 @require_http_methods(["POST"])
 def generate_text_content(request):
-    """Generate marketing content (captions, hashtags, etc.) using AI"""
-    try:
-        data = json.loads(request.body)
-        product_desc = data.get('product_desc', '').strip()
-        target_audience = data.get('target_audience', '').strip()
-        platform = data.get('platform', 'general')
-        
-        gen_caption = data.get('gen_caption', False)
-        gen_hashtags = data.get('gen_hashtags', False)
-        gen_cta = data.get('gen_cta', False)
-        gen_hooks = data.get('gen_hooks', False)
-        
-        if not product_desc:
-            return JsonResponse({'success': False, 'error': 'Product description is required'}, status=400)
-        
-        # Configure Gemini API for text generation
-        api_key = getattr(settings, 'GEMINI_API_KEY', None)
-        if not api_key:
-            return JsonResponse({'success': False, 'error': 'API key not configured'}, status=500)
-        
-        content = {}
-        
-        # Generate Caption
-        if gen_caption:
-            caption_prompt = f"""Create an engaging social media caption for {platform} with these details:
-Product: {product_desc}
-Target Audience: {target_audience or 'general audience'}
-
-Requirements:
-- Make it catchy and attention-grabbing
-- 2-3 sentences max
-- Include relevant emojis naturally
-- Focus on benefits and emotional appeal
-- Platform-appropriate tone for {platform}
-- End with a subtle call-to-action
-
-Return only the caption, nothing else."""
-            
-            response = requests.post(
-                'https://openrouter.ai/api/v1/chat/completions',
-                headers={
-                    'Authorization': f'Bearer {api_key}',
-                    'HTTP-Referer': 'https://adezy.com',
-                    'X-Title': 'AdEzy AI Generator',
-                    'Content-Type': 'application/json'
-                },
-                json={
-                    'model': 'google/gemini-2.0-flash-exp:free',
-                    'messages': [{'role': 'user', 'content': caption_prompt}]
-                },
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                content['caption'] = result['choices'][0]['message']['content'].strip()
-            else:
-                print(f"Caption API Error: {response.status_code}, {response.text}")
-                content['caption'] = "Unable to generate caption at this time."
-        
-        # Generate Hashtags
-        if gen_hashtags:
-            hashtags_prompt = f"""Generate relevant hashtags for this product on {platform}:
-Product: {product_desc}
-Target Audience: {target_audience or 'general audience'}
-
-Requirements:
-- Mix of popular and niche hashtags
-- 10-15 hashtags
-- Include branded, category, and trending hashtags
-- Platform-appropriate for {platform}
-- Format: #hashtag1 #hashtag2 #hashtag3 etc.
-
-Return only the hashtags separated by spaces, nothing else."""
-            
-            response = requests.post(
-                'https://openrouter.ai/api/v1/chat/completions',
-                headers={
-                    'Authorization': f'Bearer {api_key}',
-                    'HTTP-Referer': 'https://adezy.com',
-                    'X-Title': 'AdEzy AI Generator',
-                    'Content-Type': 'application/json'
-                },
-                json={
-                    'model': 'google/gemini-2.0-flash-exp:free',
-                    'messages': [{'role': 'user', 'content': hashtags_prompt}]
-                },
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                content['hashtags'] = result['choices'][0]['message']['content'].strip()
-            else:
-                print(f"Hashtags API Error: {response.status_code}, {response.text}")
-                content['hashtags'] = "#marketing #business #product"
-        
-        # Generate Call to Action
-        if gen_cta:
-            cta_prompt = f"""Create 3 powerful call-to-action lines for {platform} promoting:
-Product: {product_desc}
-Target Audience: {target_audience or 'general audience'}
-
-Requirements:
-- Action-oriented and urgent
-- One line each (separate with line breaks)
-- Include emojis
-- Create FOMO (fear of missing out)
-- Platform-appropriate for {platform}
-
-Return only the 3 CTA lines, nothing else."""
-            
-            response = requests.post(
-                'https://openrouter.ai/api/v1/chat/completions',
-                headers={
-                    'Authorization': f'Bearer {api_key}',
-                    'HTTP-Referer': 'https://adezy.com',
-                    'X-Title': 'AdEzy AI Generator',
-                    'Content-Type': 'application/json'
-                },
-                json={
-                    'model': 'google/gemini-2.0-flash-exp:free',
-                    'messages': [{'role': 'user', 'content': cta_prompt}]
-                },
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                content['cta'] = result['choices'][0]['message']['content'].strip()
-            else:
-                print(f"CTA API Error: {response.status_code}, {response.text}")
-                content['cta'] = "🔥 Get yours now!\n💥 Limited time offer!\n✨ Don't miss out!"
-        
-        # Generate Hook Lines
-        if gen_hooks:
-            hooks_prompt = f"""Create 5 attention-grabbing hook lines to start a {platform} post about:
-Product: {product_desc}
-Target Audience: {target_audience or 'general audience'}
-
-Requirements:
-- Make people stop scrolling
-- Question-based or surprising statements
-- One line each (separate with line breaks)
-- Include emojis where appropriate
-- Curiosity-driven
-
-Return only the 5 hook lines, nothing else."""
-            
-            response = requests.post(
-                'https://openrouter.ai/api/v1/chat/completions',
-                headers={
-                    'Authorization': f'Bearer {api_key}',
-                    'HTTP-Referer': 'https://adezy.com',
-                    'X-Title': 'AdEzy AI Generator',
-                    'Content-Type': 'application/json'
-                },
-                json={
-                    'model': 'google/gemini-2.0-flash-exp:free',
-                    'messages': [{'role': 'user', 'content': hooks_prompt}]
-                },
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                content['hooks'] = result['choices'][0]['message']['content'].strip()
-            else:
-                print(f"Hooks API Error: {response.status_code}, {response.text}")
-                content['hooks'] = "🤔 Want to know a secret?\n💡 What if I told you...\n🎯 Ready to transform your life?\n⚡ This changes everything!\n🌟 You won't believe this!"
-        
-        return JsonResponse({
-            'success': True,
-            'content': content
-        })
-        
-    except Exception as e:
-        import traceback
-        error_details = traceback.format_exc()
-        print(f"Error generating text content: {error_details}")
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    """Generate marketing content - currently unavailable due to AI API maintenance"""
+    return JsonResponse({
+        'success': False,
+        'error': 'AI text generation service is temporarily unavailable as the AI API is undergoing maintenance. Please check back soon.'
+    }, status=503)
 
 @login_required
 @require_http_methods(["POST"])
 def generate_product_image(request):
-    """Generate product image using AI"""
-    try:
-        import requests
-        import base64
-        from io import BytesIO
-        
-        data = json.loads(request.body)
-        product_type = data.get('product_type', '').strip()
-        style = data.get('style', '').strip()
-        background = data.get('background', 'white')
-        format_type = data.get('format', 'square')
-        
-        if not product_type or not style:
-            return JsonResponse({'success': False, 'error': 'Product type and style are required'}, status=400)
-        
-        # Map format to dimensions
-        format_map = {
-            'square': (1080, 1080),
-            'portrait': (1080, 1350),
-            'story': (1080, 1920),
-            'landscape': (1200, 628)
-        }
-        width, height = format_map.get(format_type, (1080, 1080))
-        
-        # Map background to descriptive text
-        background_map = {
-            'white': 'clean white background, minimalist, professional, studio lighting',
-            'gradient': 'modern gradient background (purple to blue), vibrant colors, eye-catching, dynamic',
-            'wooden': 'rustic wooden table surface, natural wood grain texture, warm brown tones, soft natural light',
-            'marble': 'luxury white marble surface with gray veins, elegant, high-end aesthetic, pristine',
-            'lifestyle': 'realistic lifestyle setting, natural environment, authentic, in-context usage',
-            'nature': 'outdoor natural setting, lush greenery, soft sunlight, organic atmosphere',
-            'studio': 'professional photography studio, dramatic lighting, dark background, spotlight on subject'
-        }
-        background_desc = background_map.get(background, 'neutral background')
-        
-        # Configure Seedream API
-        api_key = getattr(settings, 'SEEDREAM_API_KEY', None)
-        if not api_key:
-            return JsonResponse({'success': False, 'error': 'API key not configured'}, status=500)
-        
-        # Create highly detailed prompt for image generation
-        detailed_prompt = f"""Create a high-quality, professional product photography image of: {product_type}
-
-Style & Details: {style}
-
-Background: {background_desc}
-
-Technical specifications:
-- Resolution: {width}x{height}px
-- Ultra-high quality, 8K resolution
-- Professional product photography
-- Sharp focus on the product
-- Perfect composition and framing
-- Photorealistic rendering
-- Professional color grading
-- Studio-quality lighting
-
-Composition guidelines:
-- Center the product prominently
-- Ensure the product takes up 60-70% of the frame
-- Maintain proper proportions and perspective
-- Add subtle shadows for depth
-- Include soft highlights to show texture
-- Professional product shot aesthetic
-
-If text is mentioned in the prompt, render it with:
-- Bold, sans-serif font (like Montserrat Bold or Impact)
-- White text color (#FFFFFF)
-- Thick black outline/stroke (3-4px) for contrast
-- High readability and visibility
-- Positioned according to composition rules
-- Shadow effect for depth
-
-Make the image look like a professional advertisement or social media post, ready to use immediately."""
-        
-        # Use OpenRouter with Seedream for image generation
-        try:
-            response = requests.post(
-                'https://openrouter.ai/api/v1/chat/completions',
-                headers={
-                    'Authorization': f'Bearer {api_key}',
-                    'HTTP-Referer': 'https://adezy.com',
-                    'X-Title': 'AdEzy AI Generator',
-                    'Content-Type': 'application/json'
-                },
-                json={
-                    'model': 'bytedance-seed/seedream-4.5',
-                    'messages': [
-                        {
-                            'role': 'user',
-                            'content': [
-                                {
-                                    'type': 'text',
-                                    'text': detailed_prompt
-                                }
-                            ]
-                        }
-                    ],
-                    'max_tokens': 1024,
-                    'temperature': 0.7
-                },
-                timeout=60
-            )
-            
-            if response.status_code == 200:
-                result = response.json()
-                
-                # Check if image was generated
-                if 'choices' in result and len(result['choices']) > 0:
-                    message = result['choices'][0].get('message', {})
-                    
-                    # Look for image in the response
-                    if 'content' in message:
-                        content = message['content']
-                        
-                        # Check if content is a list (multimodal response)
-                        if isinstance(content, list):
-                            for item in content:
-                                if isinstance(item, dict) and item.get('type') == 'image_url':
-                                    image_url = item.get('image_url', {}).get('url', '')
-                                    if image_url:
-                                        # Download and save the image
-                                        image_filename = f'ai_product_{request.user.id}_{timezone.now().timestamp()}.jpg'
-                                        image_path = os.path.join(settings.MEDIA_ROOT, 'ai_images', image_filename)
-                                        os.makedirs(os.path.dirname(image_path), exist_ok=True)
-                                        
-                                        # Handle base64 or URL
-                                        if image_url.startswith('data:image'):
-                                            # Base64 encoded image
-                                            image_data = image_url.split('base64,')[1]
-                                            with open(image_path, 'wb') as f:
-                                                f.write(base64.b64decode(image_data))
-                                        else:
-                                            # URL - download the image
-                                            img_response = requests.get(image_url)
-                                            with open(image_path, 'wb') as f:
-                                                f.write(img_response.content)
-                                        
-                                        final_image_url = os.path.join(settings.MEDIA_URL, 'ai_images', image_filename)
-                                        return JsonResponse({
-                                            'success': True,
-                                            'image_url': final_image_url,
-                                            'prompt_used': detailed_prompt
-                                        })
-            
-            # If image generation via API didn't work, create enhanced placeholder
-            print(f"Seedream response: {response.status_code}, {response.text}")
-            
-        except Exception as api_error:
-            print(f"API Error: {api_error}")
-        
-        # Fallback: Create enhanced placeholder with PIL
-        from PIL import Image, ImageDraw, ImageFont, ImageEnhance, ImageFilter
-        
-        # Create high-quality base image
-        img = Image.new('RGB', (width, height), color='#ffffff')
-        draw = ImageDraw.Draw(img)
-        
-        # Create sophisticated gradient background
-        for i in range(height):
-            alpha = i / height
-            if background == 'gradient':
-                # Purple to blue gradient
-                r = int(147 * (1 - alpha) + 59 * alpha)
-                g = int(51 * (1 - alpha) + 130 * alpha)
-                b = int(234 * (1 - alpha) + 246 * alpha)
-            elif background == 'wooden':
-                # Warm brown tones
-                r = int(139 * (1 - alpha) + 101 * alpha)
-                g = int(90 * (1 - alpha) + 67 * alpha)
-                b = int(43 * (1 - alpha) + 33 * alpha)
-            elif background == 'marble':
-                # White with subtle gray
-                r = int(255 * (1 - alpha * 0.05))
-                g = int(255 * (1 - alpha * 0.05))
-                b = int(255 * (1 - alpha * 0.08))
-            else:
-                # Clean white to light gray
-                r = g = b = int(255 * (1 - alpha * 0.02))
-            draw.rectangle([(0, i), (width, i+1)], fill=(r, g, b))
-        
-        # Add decorative elements
-        if background == 'gradient':
-            # Add some circles for visual interest
-            for _ in range(3):
-                import random
-                cx = random.randint(0, width)
-                cy = random.randint(0, height)
-                radius = random.randint(50, 150)
-                draw.ellipse([cx-radius, cy-radius, cx+radius, cy+radius], 
-                           fill=(255, 255, 255, 30))
-        
-        # Load or create fonts
-        try:
-            # Try to load Impact font for bold text
-            title_font = ImageFont.truetype("impact.ttf", int(height * 0.12))
-            subtitle_font = ImageFont.truetype("arial.ttf", int(height * 0.05))
-            small_font = ImageFont.truetype("arial.ttf", int(height * 0.03))
-        except:
-            try:
-                title_font = ImageFont.truetype("arial.ttf", int(height * 0.12))
-                subtitle_font = ImageFont.truetype("arial.ttf", int(height * 0.05))
-                small_font = ImageFont.truetype("arial.ttf", int(height * 0.03))
-            except:
-                title_font = ImageFont.load_default()
-                subtitle_font = ImageFont.load_default()
-                small_font = ImageFont.load_default()
-        
-        # Extract text from product description if mentioned
-        main_text = product_type.upper()
-        
-        # Draw text with white fill and black outline
-        # Calculate text position (center)
-        bbox = draw.textbbox((0, 0), main_text, font=title_font)
-        text_width = bbox[2] - bbox[0]
-        text_height = bbox[3] - bbox[1]
-        x = (width - text_width) // 2
-        y = (height - text_height) // 2 - int(height * 0.1)
-        
-        # Draw black outline (multiple passes for thick stroke)
-        outline_width = 4
-        for offset_x in range(-outline_width, outline_width + 1):
-            for offset_y in range(-outline_width, outline_width + 1):
-                if offset_x != 0 or offset_y != 0:
-                    draw.text((x + offset_x, y + offset_y), main_text, 
-                            fill='#000000', font=title_font)
-        
-        # Draw white text on top
-        draw.text((x, y), main_text, fill='#FFFFFF', font=title_font)
-        
-        # Add style description below
-        style_text = style[:50]
-        bbox = draw.textbbox((0, 0), style_text, font=subtitle_font)
-        text_width = bbox[2] - bbox[0]
-        x = (width - text_width) // 2
-        y = y + text_height + int(height * 0.05)
-        
-        # Outline for subtitle
-        for offset_x in range(-2, 3):
-            for offset_y in range(-2, 3):
-                if offset_x != 0 or offset_y != 0:
-                    draw.text((x + offset_x, y + offset_y), style_text, 
-                            fill='#000000', font=subtitle_font)
-        draw.text((x, y), style_text, fill='#FFFFFF', font=subtitle_font)
-        
-        # Add watermark
-        watermark = "AdEzy AI Studio"
-        bbox = draw.textbbox((0, 0), watermark, font=small_font)
-        text_width = bbox[2] - bbox[0]
-        x = width - text_width - 20
-        y = height - 40
-        draw.text((x, y), watermark, fill=(255, 255, 255, 180), font=small_font)
-        
-        # Apply slight blur for professional look (subtle)
-        # img = img.filter(ImageFilter.GaussianBlur(radius=0.5))
-        
-        # Enhance contrast and sharpness
-        enhancer = ImageEnhance.Contrast(img)
-        img = enhancer.enhance(1.2)
-        
-        enhancer = ImageEnhance.Sharpness(img)
-        img = enhancer.enhance(1.3)
-        
-        # Save image
-        image_filename = f'ai_product_{request.user.id}_{timezone.now().timestamp()}.jpg'
-        image_path = os.path.join(settings.MEDIA_ROOT, 'ai_images', image_filename)
-        os.makedirs(os.path.dirname(image_path), exist_ok=True)
-        img.save(image_path, 'JPEG', quality=95, optimize=True)
-        
-        image_url = os.path.join(settings.MEDIA_URL, 'ai_images', image_filename)
-        
-        return JsonResponse({
-            'success': True,
-            'image_url': image_url,
-            'prompt_used': detailed_prompt
-        })
-        
-    except Exception as e:
-        import traceback
-        error_details = traceback.format_exc()
-        print(f"Error generating product image: {error_details}")
-        return JsonResponse({'success': False, 'error': str(e)}, status=500)
+    """Generate product image - currently unavailable due to AI API maintenance"""
+    return JsonResponse({
+        'success': False,
+        'error': 'AI image generation service is temporarily unavailable as the AI API is undergoing maintenance. Please check back soon.'
+    }, status=503)

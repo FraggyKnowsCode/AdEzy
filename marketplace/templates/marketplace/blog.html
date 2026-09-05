@@ -1,0 +1,111 @@
+{% extends 'marketplace/base.html' %}
+{% load static %}
+
+{% block title %}Blog & Growth Insights - AdEzy{% endblock %}
+
+{% block content %}
+<div class="blog-page-wrapper">
+    <div class="container">
+        <!-- Hero Banner -->
+        <div class="page-hero-banner">
+            <span class="badge-gold-pill">
+                <i class="fa-solid fa-newspaper"></i> Knowledge Base &amp; Trends
+            </span>
+            <h1 class="page-main-heading">
+                Growth Insights &amp; <span class="text-gold">Articles</span>
+            </h1>
+            <p class="page-sub-heading">
+                Proven strategies, algorithm breakdowns, video editing blueprints, and growth tips curated by top freelancers and creators.
+            </p>
+        </div>
+
+        <!-- Featured Big Post -->
+        <div class="blog-featured-article">
+            <div class="featured-img-wrap">
+                <img src="https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80" alt="Featured Article">
+                <span class="featured-tag"><i class="fa-solid fa-fire text-gold"></i> Featured Guide</span>
+            </div>
+            <div class="featured-content">
+                <div class="blog-post-meta">
+                    <span class="meta-tag">YouTube Growth</span>
+                    <span class="meta-date"><i class="fa-regular fa-clock"></i> 8 Min Read</span>
+                </div>
+                <h2 class="featured-title">How to Explode Your YouTube Channel in 2026: The Algorithm &amp; SEO Blueprint</h2>
+                <p class="featured-excerpt">
+                    CTR, average view duration, and session times have evolved. In this deep dive, we break down the exact strategies top creators use to scale from zero to 100K subscribers with high-retention editing and search ranking.
+                </p>
+                <div class="featured-author-row">
+                    <div class="author-avatar">A</div>
+                    <div class="author-info">
+                        <strong>AdEzy Editorial Team</strong>
+                        <span>Published 3 days ago</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grid of Blog Posts -->
+        <div class="blog-articles-grid">
+            <!-- Article 1 -->
+            <div class="article-card">
+                <div class="article-img-wrap">
+                    <img src="https://images.unsplash.com/photo-1574717024653-61fd2cf4d44d?w=600&auto=format&fit=crop&q=80" alt="Video Editing">
+                    <span class="article-badge">Video Production</span>
+                </div>
+                <div class="article-body">
+                    <div class="article-meta">
+                        <span><i class="fa-regular fa-clock"></i> 5 min read</span>
+                    </div>
+                    <h3 class="article-title">Top 5 Premiere Pro Color Grading Mistakes (And How to Fix Them)</h3>
+                    <p class="article-excerpt">
+                        Learn how professional colorists set exposure, balance skin tones, and apply LUTs for cinematic YouTube videos.
+                    </p>
+                    <div class="article-footer">
+                        <span class="read-more-link">Read Full Guide <i class="fa-solid fa-arrow-right"></i></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Article 2 -->
+            <div class="article-card">
+                <div class="article-img-wrap">
+                    <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?w=600&auto=format&fit=crop&q=80" alt="SEO Strategies">
+                    <span class="article-badge">Search Optimization</span>
+                </div>
+                <div class="article-body">
+                    <div class="article-meta">
+                        <span><i class="fa-regular fa-clock"></i> 6 min read</span>
+                    </div>
+                    <h3 class="article-title">Ranking #1 on Google in 2026: Search Intent &amp; Technical SEO</h3>
+                    <p class="article-excerpt">
+                        Why traditional keyword stuffing is obsolete and how semantic search and fast page speeds dominate modern SERPs.
+                    </p>
+                    <div class="article-footer">
+                        <span class="read-more-link">Read Full Guide <i class="fa-solid fa-arrow-right"></i></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Article 3 -->
+            <div class="article-card">
+                <div class="article-img-wrap">
+                    <img src="https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?w=600&auto=format&fit=crop&q=80" alt="Instagram Reels">
+                    <span class="article-badge">Social Media</span>
+                </div>
+                <div class="article-body">
+                    <div class="article-meta">
+                        <span><i class="fa-regular fa-clock"></i> 4 min read</span>
+                    </div>
+                    <h3 class="article-title">Hook Mastery: How the First 3 Seconds Decide Your Video's Fate</h3>
+                    <p class="article-excerpt">
+                        Master psychological hooks, visual pattern interrupts, and sound cues to skyrocket your Instagram &amp; TikTok completion rates.
+                    </p>
+                    <div class="article-footer">
+                        <span class="read-more-link">Read Full Guide <i class="fa-solid fa-arrow-right"></i></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

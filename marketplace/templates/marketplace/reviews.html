@@ -1,0 +1,177 @@
+{% extends 'marketplace/base.html' %}
+{% load static %}
+
+{% block title %}Client Reviews - AdEzy{% endblock %}
+
+{% block content %}
+<div class="reviews-page-wrapper">
+    <div class="container">
+        <!-- Hero Banner -->
+        <div class="page-hero-banner">
+            <span class="badge-gold-pill">
+                <i class="fa-solid fa-star"></i> Verified Feedback
+            </span>
+            <h1 class="page-main-heading">
+                What Our Clients <span class="text-gold">Say</span>
+            </h1>
+            <p class="page-sub-heading">
+                Real feedback from over 2,000 YouTubers, creators, business owners, and digital agencies using AdEzy to grow their brands.
+            </p>
+
+            <!-- Overall Rating Summary Card -->
+            <div class="reviews-overall-card">
+                <div class="overall-number">4.9</div>
+                <div class="overall-stars">
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                </div>
+                <div class="overall-meta">Based on <strong>1,248+ verified reviews</strong></div>
+            </div>
+        </div>
+
+        <!-- Client Reviews Grid -->
+        <div class="reviews-catalog-grid">
+            <!-- Review 1 -->
+            <div class="review-catalog-card">
+                <div class="review-card-top">
+                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Sarah K." class="review-user-avatar">
+                    <div class="review-user-info">
+                        <h4>Sarah K.</h4>
+                        <span class="review-role">E-commerce Founder</span>
+                    </div>
+                    <span class="verified-tag"><i class="fa-solid fa-circle-check text-gold"></i> Verified</span>
+                </div>
+                <div class="review-rating-row">
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                </div>
+                <p class="review-body">
+                    "Their SEO service improved my website ranking from page 4 to page 1 in less than 6 weeks. Organic sales have doubled. Absolutely recommend AdEzy to any store owner!"
+                </p>
+                <div class="review-service-used">Service: <strong>SEO Ranking &amp; Audit</strong></div>
+            </div>
+
+            <!-- Review 2 -->
+            <div class="review-catalog-card">
+                <div class="review-card-top">
+                    <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80" alt="John D." class="review-user-avatar">
+                    <div class="review-user-info">
+                        <h4>John D.</h4>
+                        <span class="review-role">YouTube Creator (250K Subs)</span>
+                    </div>
+                    <span class="verified-tag"><i class="fa-solid fa-circle-check text-gold"></i> Verified</span>
+                </div>
+                <div class="review-rating-row">
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                </div>
+                <p class="review-body">
+                    "AdEzy helped me scale my channel faster than I imagined. The thumbnail designers and video editors understand YouTube retention algorithms like no one else."
+                </p>
+                <div class="review-service-used">Service: <strong>YouTube Video Editing &amp; Thumbnails</strong></div>
+            </div>
+
+            <!-- Review 3 -->
+            <div class="review-catalog-card">
+                <div class="review-card-top">
+                    <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80" alt="Mike L." class="review-user-avatar">
+                    <div class="review-user-info">
+                        <h4>Mike L.</h4>
+                        <span class="review-role">Content Creator</span>
+                    </div>
+                    <span class="verified-tag"><i class="fa-solid fa-circle-check text-gold"></i> Verified</span>
+                </div>
+                <div class="review-rating-row">
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                </div>
+                <p class="review-body">
+                    "The turnaround time is insane. I submitted a 30-minute podcast video and had a clean, cinematic reel cut with captions back within 24 hours. Will be ordering weekly."
+                </p>
+                <div class="review-service-used">Service: <strong>Shorts &amp; Reel Repurposing</strong></div>
+            </div>
+
+            <!-- Review 4 -->
+            <div class="review-catalog-card">
+                <div class="review-card-top">
+                    <img src="https://images.unsplash.com/photo-1544005313-94ddf0286df2?w=100&auto=format&fit=crop&q=80" alt="Emma T." class="review-user-avatar">
+                    <div class="review-user-info">
+                        <h4>Emma T.</h4>
+                        <span class="review-role">Tech Entrepreneur</span>
+                    </div>
+                    <span class="verified-tag"><i class="fa-solid fa-circle-check text-gold"></i> Verified</span>
+                </div>
+                <div class="review-rating-row">
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                </div>
+                <p class="review-body">
+                    "Reliable, fast, and professional. The 5,000 credits signup bonus let me test my first order risk-free. Now my entire team relies on AdEzy for asset production."
+                </p>
+                <div class="review-service-used">Service: <strong>Brand Identity &amp; Mockups</strong></div>
+            </div>
+
+            <!-- Review 5 -->
+            <div class="review-catalog-card">
+                <div class="review-card-top">
+                    <img src="https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=100&auto=format&fit=crop&q=80" alt="David R." class="review-user-avatar">
+                    <div class="review-user-info">
+                        <h4>David R.</h4>
+                        <span class="review-role">Agency Director</span>
+                    </div>
+                    <span class="verified-tag"><i class="fa-solid fa-circle-check text-gold"></i> Verified</span>
+                </div>
+                <div class="review-rating-row">
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                </div>
+                <p class="review-body">
+                    "We white-label AdEzy video editing and social marketing services for our client roster. Outstanding quality, zero delays, and great customer support."
+                </p>
+                <div class="review-service-used">Service: <strong>Agency Bulk Video Production</strong></div>
+            </div>
+
+            <!-- Review 6 -->
+            <div class="review-catalog-card">
+                <div class="review-card-top">
+                    <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80" alt="Priya M." class="review-user-avatar">
+                    <div class="review-user-info">
+                        <h4>Priya M.</h4>
+                        <span class="review-role">Course Creator</span>
+                    </div>
+                    <span class="verified-tag"><i class="fa-solid fa-circle-check text-gold"></i> Verified</span>
+                </div>
+                <div class="review-rating-row">
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                    <i class="fa-solid fa-star text-gold"></i>
+                </div>
+                <p class="review-body">
+                    "The digital product presets are worth 10x what they cost. Loaded the LUTs and sound FX right into my editor and my videos instantly looked 10 times more professional."
+                </p>
+                <div class="review-service-used">Product: <strong>Video Editing Preset Pack</strong></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

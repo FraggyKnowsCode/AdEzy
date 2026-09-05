@@ -1,0 +1,203 @@
+{% extends 'marketplace/base.html' %}
+{% load static %}
+
+{% block title %}All Services - AdEzy Digital Marketplace{% endblock %}
+
+{% block content %}
+<div class="services-page-wrapper">
+    <div class="container">
+        <!-- Hero Header -->
+        <div class="page-hero-banner">
+            <span class="badge-gold-pill">
+                <i class="fa-solid fa-gem"></i> Professional Marketplace
+            </span>
+            <h1 class="page-main-heading">
+                Explore All Digital <span class="text-gold">Services</span>
+            </h1>
+            <p class="page-sub-heading">
+                Connect with vetted digital experts for video editing, search engine optimization, YouTube growth, and high-impact social media marketing.
+            </p>
+
+            <!-- Search Bar in Services -->
+            <div class="services-search-bar-wrap">
+                <i class="fa-solid fa-magnifying-glass search-bar-icon"></i>
+                <input type="text" id="services-page-search" placeholder="Search for video editing, SEO, YouTube growth..." oninput="handleServicesSearch(this.value)">
+            </div>
+        </div>
+
+        <!-- Category Filter Pills -->
+        <div class="category-filter-bar">
+            <button class="cat-pill active" onclick="filterServicesCategory('all', this)">
+                <i class="fa-solid fa-layer-group"></i> All Services
+            </button>
+            <button class="cat-pill" onclick="filterServicesCategory('Video Editing', this)">
+                <i class="fa-solid fa-clapperboard"></i> Video Editing
+            </button>
+            <button class="cat-pill" onclick="filterServicesCategory('SEO Services', this)">
+                <i class="fa-solid fa-arrow-trend-up"></i> SEO Services
+            </button>
+            <button class="cat-pill" onclick="filterServicesCategory('YouTube Services', this)">
+                <i class="fa-brands fa-youtube"></i> YouTube Services
+            </button>
+            <button class="cat-pill" onclick="filterServicesCategory('Social Media Marketing', this)">
+                <i class="fa-brands fa-instagram"></i> Social Media Marketing
+            </button>
+            <button class="cat-pill" onclick="filterServicesCategory('Analytics & Reports', this)">
+                <i class="fa-solid fa-chart-line"></i> Analytics & Reports
+            </button>
+        </div>
+
+        <!-- Live Gigs Grid -->
+        <div class="services-results-section">
+            <div id="services-grid" class="services-cards-grid">
+                <div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading services...</div>
+            </div>
+        </div>
+
+        <!-- Custom Order Banner -->
+        <div class="services-cta-banner">
+            <div class="cta-banner-content">
+                <h2>Need a Custom Solution for Your Brand?</h2>
+                <p>Have a custom project scope or enterprise requirement? Our dedicated specialists can create a custom package for you.</p>
+                <a href="/about/#contact" class="btn btn-primary">
+                    <i class="fa-solid fa-paper-plane"></i> Contact Our Team
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+let allServicesList = [];
+let activeCategory = 'all';
+let searchQuery = '';
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Check for query param in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const catParam = urlParams.get('category');
+    if (catParam) {
+        activeCategory = catParam;
+        document.querySelectorAll('.cat-pill').forEach(btn => {
+            if (btn.textContent.trim().toLowerCase().includes(catParam.toLowerCase())) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+    loadServicesCatalog();
+});
+
+async function loadServicesCatalog() {
+    const container = document.getElementById('services-grid');
+    try {
+        const response = await fetch('/api/gigs/');
+        if (!response.ok) throw new Error('Failed to load');
+        const data = await response.json();
+        allServicesList = data.gigs || [];
+        renderServicesGrid();
+    } catch (e) {
+        console.error('Error:', e);
+        if (container) {
+            container.innerHTML = '<p style="color: var(--text-muted); text-align: center; grid-column: 1/-1;">Could not load services. Please refresh the page.</p>';
+        }
+    }
+}
+
+function renderServicesGrid() {
+    const container = document.getElementById('services-grid');
+    if (!container) return;
+
+    let filtered = allServicesList;
+    if (activeCategory !== 'all') {
+        filtered = filtered.filter(g => (g.category || '').toLowerCase() === activeCategory.toLowerCase());
+    }
+
+    if (searchQuery.trim().length > 0) {
+        const q = searchQuery.toLowerCase();
+        filtered = filtered.filter(g => 
+            (g.title || '').toLowerCase().includes(q) ||
+            (g.description || '').toLowerCase().includes(q) ||
+            (g.seller_name || '').toLowerCase().includes(q)
+        );
+    }
+
+    if (filtered.length === 0) {
+        container.innerHTML = `
+            <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px;">
+                <div style="font-size: 3rem; color: var(--gold); margin-bottom: 16px;">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                </div>
+                <h3 style="color: #ffffff; font-size: 1.3rem; margin-bottom: 8px;">No Services Found</h3>
+                <p style="color: var(--text-muted);">Try adjusting your search query or selecting a different category.</p>
+                <button class="btn btn-secondary" onclick="resetFilters()" style="margin-top: 16px;">
+                    Reset Filters
+                </button>
+            </div>
+        `;
+        return;
+    }
+
+    container.innerHTML = filtered.map(g => `
+        <div class="service-catalog-card" onclick="window.location.href='/gig/${g.id}/'">
+            <div class="service-card-media">
+                <img src="${g.image_url}" alt="${g.title}" onerror="this.src='/static/images/default-gig.jpg'">
+                <span class="service-card-category">${g.category || 'Service'}</span>
+            </div>
+            <div class="service-card-body">
+                <div class="service-card-seller">
+                    <span class="seller-dot-avatar">${(g.seller_name || 'U').charAt(0).toUpperCase()}</span>
+                    <span class="seller-dot-name">${g.seller_name}</span>
+                </div>
+                <h3 class="service-card-title">${g.title}</h3>
+                <div class="service-card-specs">
+                    <span><i class="fa-regular fa-clock"></i> ${g.delivery_time} Days</span>
+                    <span class="service-rating-badge"><i class="fa-solid fa-star text-gold"></i> 4.9</span>
+                </div>
+                <div class="service-card-footer">
+                    <div class="service-card-price">
+                        <span class="price-from">Starting at</span>
+                        <strong>${g.price} ৳</strong>
+                    </div>
+                    <div class="service-card-actions" onclick="event.stopPropagation();" style="display: flex; gap: 8px; align-items: center;">
+                        <button class="btn-card-cart" onclick="addServiceToCart(${g.id}, '${(g.title || '').replace(/'/g, "\\'")}', ${g.price}, '${(g.seller_name || '').replace(/'/g, "\\'")}', ${g.delivery_time})" title="Add to Cart">
+                            <i class="fa-solid fa-cart-plus"></i>
+                        </button>
+                        <button class="btn-card-order" onclick="handleOrder(${g.id})">
+                            Order Now
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function filterServicesCategory(catName, btnEl) {
+    activeCategory = catName;
+    document.querySelectorAll('.cat-pill').forEach(b => b.classList.remove('active'));
+    if (btnEl) btnEl.classList.add('active');
+    renderServicesGrid();
+}
+
+function handleServicesSearch(val) {
+    searchQuery = val;
+    renderServicesGrid();
+}
+
+function resetFilters() {
+    activeCategory = 'all';
+    searchQuery = '';
+    const input = document.getElementById('services-page-search');
+    if (input) input.value = '';
+    document.querySelectorAll('.cat-pill').forEach((b, idx) => {
+        if (idx === 0) b.classList.add('active');
+        else b.classList.remove('active');
+    });
+    renderServicesGrid();
+}
+</script>
+{% endblock %}

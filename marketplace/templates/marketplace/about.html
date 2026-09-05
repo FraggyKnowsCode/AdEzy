@@ -1,0 +1,101 @@
+{% extends 'marketplace/base.html' %}
+{% load static %}
+
+{% block title %}About Us - AdEzy{% endblock %}
+
+{% block content %}
+<div class="about-page-wrapper">
+    <div class="container">
+        <!-- Hero Banner -->
+        <div class="page-hero-banner">
+            <span class="badge-gold-pill">
+                <i class="fa-solid fa-sparkles"></i> Digital Growth, Simplified
+            </span>
+            <h1 class="page-main-heading">
+                About <span class="text-gold">AdEzy</span>
+            </h1>
+            <p class="page-sub-heading">
+                We empower digital creators, entrepreneurs, and modern brands to grow faster with vetted services, instant digital assets, and transparent escrow protection.
+            </p>
+        </div>
+
+        <!-- 3 Pillars Grid -->
+        <div class="about-values-grid">
+            <div class="about-value-card">
+                <div class="value-icon-box"><i class="fa-solid fa-shield-halved text-gold"></i></div>
+                <h3>100% Escrow Protection</h3>
+                <p>Your payment remains secure in virtual escrow until you review and approve the final deliverables from the seller.</p>
+            </div>
+            <div class="about-value-card">
+                <div class="value-icon-box"><i class="fa-solid fa-users text-gold"></i></div>
+                <h3>Vetted Digital Talent</h3>
+                <p>Every freelancer is vetted for proven portfolio quality, rapid delivery times, and clear, transparent communication.</p>
+            </div>
+            <div class="about-value-card">
+                <div class="value-icon-box"><i class="fa-solid fa-bolt text-gold"></i></div>
+                <h3>Instant Productivity</h3>
+                <p>Access high-converting digital presets, SEO spreadsheets, and production assets with zero friction and instant delivery.</p>
+            </div>
+        </div>
+
+        <!-- Stats Bar -->
+        <div class="about-stats-container">
+            <div class="stat-box">
+                <strong>2,000+</strong>
+                <span>Active Clients</span>
+            </div>
+            <div class="stat-box">
+                <strong>4,800+</strong>
+                <span>Orders Delivered</span>
+            </div>
+            <div class="stat-box">
+                <strong>4.9 / 5.0</strong>
+                <span>Average Rating</span>
+            </div>
+            <div class="stat-box">
+                <strong>24/7</strong>
+                <span>Dedicated Support</span>
+            </div>
+        </div>
+
+        <!-- Contact & Support Form -->
+        <div class="about-contact-section" id="contact">
+            <div class="contact-card">
+                <div class="contact-info">
+                    <span class="badge-gold-pill"><i class="fa-solid fa-headset"></i> We're Here To Help</span>
+                    <h2>Have Questions or Need Custom Enterprise Solutions?</h2>
+                    <p>Our team is available 24/7 to help you configure services, connect with freelancers, or assist with your balance and orders.</p>
+                    <div class="contact-methods">
+                        <div class="cm-item">
+                            <i class="fa-solid fa-envelope text-gold"></i>
+                            <span>support@adezy.com</span>
+                        </div>
+                        <div class="cm-item">
+                            <i class="fa-solid fa-location-dot text-gold"></i>
+                            <span>Dhaka, Bangladesh</span>
+                        </div>
+                    </div>
+                </div>
+
+                <form class="contact-form" onsubmit="event.preventDefault(); if(typeof showToast === 'function') showToast('Thank you! Our support team will reach out shortly.', 'success'); this.reset();">
+                    <div class="form-group">
+                        <label>Your Name</label>
+                        <input type="text" required placeholder="John Doe" class="input-field">
+                    </div>
+                    <div class="form-group">
+                        <label>Email Address</label>
+                        <input type="email" required placeholder="john@example.com" class="input-field">
+                    </div>
+                    <div class="form-group">
+                        <label>Message or Custom Requirement</label>
+                        <textarea rows="4" required placeholder="Tell us about your brand or questions..." class="input-field"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">
+                        <i class="fa-solid fa-paper-plane"></i> Send Message
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

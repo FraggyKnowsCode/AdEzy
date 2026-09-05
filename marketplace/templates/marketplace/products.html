@@ -1,0 +1,326 @@
+{% extends 'marketplace/base.html' %}
+{% load static %}
+
+{% block title %}Digital Products - AdEzy{% endblock %}
+
+{% block content %}
+<div class="products-page-wrapper">
+    <div class="container">
+        <!-- Hero Header -->
+        <div class="page-hero-banner">
+            <span class="badge-gold-pill">
+                <i class="fa-solid fa-box-open"></i> Instant Digital Assets
+            </span>
+            <h1 class="page-main-heading">
+                Explore Digital <span class="text-gold">Products</span>
+            </h1>
+            <p class="page-sub-heading">
+                Handcrafted presets, creator toolkits, SEO packs, and production templates designed to accelerate your workflow. Instant download upon order.
+            </p>
+
+            <!-- Search and Filter Bar -->
+            <div class="products-search-bar-wrap">
+                <i class="fa-solid fa-magnifying-glass search-bar-icon"></i>
+                <input type="text" id="products-search-input" placeholder="Search products, packs, presets..." oninput="filterProductsBySearch(this.value)">
+            </div>
+        </div>
+
+        <!-- Categorized Tabs Navigation -->
+        <div class="product-category-tabs">
+            <button class="prod-tab-btn active" onclick="switchProductCategory('all', this)">
+                <i class="fa-solid fa-grid-2"></i> All Products
+            </button>
+            <button class="prod-tab-btn" onclick="switchProductCategory('youtube', this)">
+                <i class="fa-brands fa-youtube"></i> YouTube Growth
+            </button>
+            <button class="prod-tab-btn" onclick="switchProductCategory('video', this)">
+                <i class="fa-solid fa-film"></i> Video Production &amp; LUTs
+            </button>
+            <button class="prod-tab-btn" onclick="switchProductCategory('social', this)">
+                <i class="fa-brands fa-instagram"></i> Social Media &amp; Viral
+            </button>
+            <button class="prod-tab-btn" onclick="switchProductCategory('design', this)">
+                <i class="fa-solid fa-palette"></i> Design &amp; Thumbnails
+            </button>
+        </div>
+
+        <!-- Product Cards Grid -->
+        <div class="products-catalog-grid" id="products-grid">
+            <!-- Rendered by JS below for category filtering and instant responsiveness -->
+        </div>
+
+        <!-- Bottom Feature Callout -->
+        <div class="products-perks-row">
+            <div class="perk-card">
+                <div class="perk-icon"><i class="fa-solid fa-bolt text-gold"></i></div>
+                <h4>Instant Access</h4>
+                <p>Digital files are immediately available in your dashboard after order confirmation.</p>
+            </div>
+            <div class="perk-card">
+                <div class="perk-icon"><i class="fa-solid fa-certificate text-gold"></i></div>
+                <h4>Commercial License</h4>
+                <p>Every digital product includes unlimited commercial rights for client and personal work.</p>
+            </div>
+            <div class="perk-card">
+                <div class="perk-icon"><i class="fa-solid fa-arrows-rotate text-gold"></i></div>
+                <h4>Lifetime Updates</h4>
+                <p>Receive free updates and new asset drops for all packs you own forever.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const digitalProductsData = [
+    // YouTube Category
+    {
+        id: 'yt-seo',
+        category: 'youtube',
+        categoryLabel: 'YouTube Growth',
+        title: 'YouTube SEO Pack',
+        description: 'Complete keyword database, tag generators, rank-tracking templates, and metadata formulas.',
+        price: 19.99,
+        rating: 4.9,
+        reviews: 128,
+        tag: 'YouTube',
+        tagClass: 'badge-yt',
+        icon: 'fa-brands fa-youtube',
+        accentClass: 'preview-yt'
+    },
+    {
+        id: 'yt-thumb',
+        category: 'youtube',
+        categoryLabel: 'YouTube Growth',
+        title: 'YouTube Thumbnail Pack',
+        description: 'High-CTR Photoshop thumbnail templates, typography styles, and lighting overlays.',
+        price: 9.99,
+        rating: 4.9,
+        reviews: 156,
+        tag: 'Ps',
+        tagClass: 'badge-ps-tag',
+        icon: '',
+        accentClass: 'preview-ps'
+    },
+    {
+        id: 'yt-starter',
+        category: 'youtube',
+        categoryLabel: 'YouTube Growth',
+        title: 'Channel Starter Toolkit',
+        description: 'Full channel branding kits, end-screen templates, lower thirds, and banner mockups.',
+        price: 15.00,
+        rating: 4.8,
+        reviews: 74,
+        tag: 'YouTube',
+        tagClass: 'badge-yt',
+        icon: 'fa-brands fa-youtube',
+        accentClass: 'preview-yt'
+    },
+
+    // Video Production Category
+    {
+        id: 'video-presets',
+        category: 'video',
+        categoryLabel: 'Video Production',
+        title: 'Video Editing Preset Pack',
+        description: '150+ transitions, zooms, text animations, and color grading LUTs for Premiere Pro.',
+        price: 14.99,
+        rating: 4.8,
+        reviews: 95,
+        tag: 'Pr',
+        tagClass: 'badge-pr-tag',
+        icon: '',
+        accentClass: 'preview-pr'
+    },
+    {
+        id: 'video-luts',
+        category: 'video',
+        categoryLabel: 'Video Production',
+        title: 'Cinematic Film LUTs Bundle',
+        description: '30 Hollywood-grade color grading .cube profiles compatible with Premiere, DaVinci, and FCPX.',
+        price: 11.50,
+        rating: 4.9,
+        reviews: 63,
+        tag: 'Pr',
+        tagClass: 'badge-pr-tag',
+        icon: '',
+        accentClass: 'preview-pr'
+    },
+    {
+        id: 'video-sfx',
+        category: 'video',
+        categoryLabel: 'Video Production',
+        title: 'Creator Sound FX Library',
+        description: '500+ master-quality whooshes, riser impacts, pops, and ambient sound bites for viral edits.',
+        price: 8.99,
+        rating: 4.7,
+        reviews: 112,
+        tag: 'SFX',
+        tagClass: 'badge-gold-tag',
+        icon: 'fa-solid fa-volume-high',
+        accentClass: 'preview-gold'
+    },
+
+    // Social Media Category
+    {
+        id: 'insta-growth',
+        category: 'social',
+        categoryLabel: 'Social Media',
+        title: 'Instagram Growth Pack',
+        description: 'Viral hook swipe files, carousel templates, caption guides, and hashtag strategies.',
+        price: 12.99,
+        rating: 4.7,
+        reviews: 87,
+        tag: 'Insta',
+        tagClass: 'badge-insta-tag',
+        icon: 'fa-brands fa-instagram',
+        accentClass: 'preview-insta'
+    },
+    {
+        id: 'tiktok-hooks',
+        category: 'social',
+        categoryLabel: 'Social Media',
+        title: 'Viral TikTok & Reels Blueprint',
+        description: '100 proven viral opening script hooks, pacing checklists, and audio trend trackers.',
+        price: 10.00,
+        rating: 4.9,
+        reviews: 140,
+        tag: 'TikTok',
+        tagClass: 'badge-pink-tag',
+        icon: 'fa-brands fa-tiktok',
+        accentClass: 'preview-pink'
+    },
+
+    // Design Category
+    {
+        id: 'design-master',
+        category: 'design',
+        categoryLabel: 'Graphic Design',
+        title: 'Photoshop Master Pack',
+        description: 'Brushes, textured gradients, glowing light FX, and 3D rendering elements.',
+        price: 16.50,
+        rating: 4.8,
+        reviews: 82,
+        tag: 'Ps',
+        tagClass: 'badge-ps-tag',
+        icon: '',
+        accentClass: 'preview-ps'
+    },
+    {
+        id: 'social-mockups',
+        category: 'design',
+        categoryLabel: 'Graphic Design',
+        title: 'Device & Social Mockup Bundle',
+        description: 'Ultra-realistic iPhone, MacBook, and iPad presentation PSD mockups with smart objects.',
+        price: 13.00,
+        rating: 4.9,
+        reviews: 58,
+        tag: 'Design',
+        tagClass: 'badge-gold-tag',
+        icon: 'fa-solid fa-wand-magic-sparkles',
+        accentClass: 'preview-gold'
+    }
+];
+
+let selectedCategory = 'all';
+let currentSearch = '';
+
+document.addEventListener('DOMContentLoaded', () => {
+    renderProducts();
+});
+
+function switchProductCategory(cat, btn) {
+    selectedCategory = cat;
+    document.querySelectorAll('.prod-tab-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    renderProducts();
+}
+
+function filterProductsBySearch(val) {
+    currentSearch = val.toLowerCase().trim();
+    renderProducts();
+}
+
+function renderProducts() {
+    const grid = document.getElementById('products-grid');
+    if (!grid) return;
+
+    let items = digitalProductsData;
+    if (selectedCategory !== 'all') {
+        items = items.filter(p => p.category === selectedCategory);
+    }
+
+    if (currentSearch.length > 0) {
+        items = items.filter(p => 
+            p.title.toLowerCase().includes(currentSearch) ||
+            p.description.toLowerCase().includes(currentSearch) ||
+            p.categoryLabel.toLowerCase().includes(currentSearch)
+        );
+    }
+
+    if (items.length === 0) {
+        grid.innerHTML = `
+            <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px;">
+                <div style="font-size: 3rem; color: var(--gold); margin-bottom: 16px;">
+                    <i class="fa-solid fa-box-open"></i>
+                </div>
+                <h3 style="color: #ffffff; font-size: 1.3rem; margin-bottom: 8px;">No Products Found</h3>
+                <p style="color: var(--text-muted);">Try a different search keyword or category.</p>
+            </div>
+        `;
+        return;
+    }
+
+    grid.innerHTML = items.map(p => `
+        <div class="product-catalog-card" onclick="window.location.href='/product/${p.id}/'" style="cursor: pointer;">
+            <div class="product-catalog-preview ${p.accentClass}">
+                <div class="product-grid-pattern"></div>
+                <div class="product-preview-center">
+                    <span class="preview-brand-tag">${p.categoryLabel}</span>
+                    <h4 class="preview-hero-title">${p.title}</h4>
+                </div>
+                <div class="product-corner-badge ${p.tagClass}">
+                    ${p.icon ? `<i class="${p.icon}"></i>` : `<span>${p.tag}</span>`}
+                </div>
+            </div>
+
+            <div class="product-catalog-body">
+                <div class="product-catalog-meta">
+                    <span class="product-cat-pill">${p.categoryLabel}</span>
+                    <div class="product-stars">
+                        <i class="fa-solid fa-star text-gold"></i>
+                        <strong>${p.rating}</strong>
+                        <span>(${p.reviews})</span>
+                    </div>
+                </div>
+
+                <h3 class="product-catalog-title"><a href="/product/${p.id}/">${p.title}</a></h3>
+                <p class="product-catalog-desc">${p.description}</p>
+
+                <div class="product-catalog-footer">
+                    <div class="product-price-tag">
+                        <span class="price-val">৳ ${p.price.toFixed(2)}</span>
+                    </div>
+                    <div class="product-btn-group" onclick="event.stopPropagation();">
+                        <button class="btn-product-cart" onclick="addProductToCart('${p.id}', '${p.title.replace(/'/g, "\\'")}', ${p.price}, '${p.categoryLabel}')" title="Add to Cart">
+                            <i class="fa-solid fa-cart-plus"></i>
+                        </button>
+                        <a href="/product/${p.id}/" class="btn-product-buy">
+                            Details
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function buyDigitalProduct(id, title, price, category) {
+    if (typeof addProductToCart === 'function') {
+        addProductToCart(id, title, price, category);
+        toggleCartModal();
+    }
+}
+</script>
+{% endblock %}

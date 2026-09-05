@@ -1,56 +1,82 @@
 {% load static %}
 <!-- Footer -->
 <footer class="site-footer">
-    <div class="footer-content">
-        <div class="footer-section">
-            <h3 class="footer-heading">Categories</h3>
-            <ul class="footer-links">
-                <li><a href="/?category=Social+Media+Marketing#popular-services">Social Media Marketing</a></li>
-                <li><a href="/?category=Google+Ads#popular-services">Google Ads</a></li>
-                <li><a href="/?category=Facebook+Ads#popular-services">Facebook Advertising</a></li>
-                <li><a href="/?category=Content+Writing#popular-services">Content Writing</a></li>
-                <li><a href="/?category=Graphic+Design#popular-services">Graphic Design</a></li>
-                <li><a href="/?category=Email+Marketing#popular-services">Email Marketing</a></li>
-                <li><a href="/?category=SEO+Services#popular-services">SEO Services</a></li>
-                <li><a href="/?category=Video+Ads#popular-services">Video Ads</a></li>
-            </ul>
+    <div class="container footer-container">
+        <div class="footer-grid">
+            <!-- Brand Column -->
+            <div class="footer-col footer-brand-col">
+                <a href="/" class="footer-logo">
+                    Ad<span class="text-gold">Ezy</span>
+                </a>
+                <p class="footer-desc">
+                    Your all-in-one platform for premium digital services and products. We help you grow your brand the
+                    easy way.
+                </p>
+                <div class="footer-socials">
+                    <a href="https://youtube.com" target="_blank" rel="noopener" class="social-btn"
+                        aria-label="YouTube">
+                        <i class="fa-brands fa-youtube"></i>
+                    </a>
+                    <a href="https://instagram.com" target="_blank" rel="noopener" class="social-btn"
+                        aria-label="Instagram">
+                        <i class="fa-brands fa-instagram"></i>
+                    </a>
+                    <a href="https://facebook.com" target="_blank" rel="noopener" class="social-btn"
+                        aria-label="Facebook">
+                        <i class="fa-brands fa-facebook-f"></i>
+                    </a>
+                    <a href="https://twitter.com" target="_blank" rel="noopener" class="social-btn"
+                        aria-label="Twitter">
+                        <i class="fa-brands fa-x-twitter"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- Quick Links Column -->
+            <div class="footer-col">
+                <h4 class="footer-title">Quick Links</h4>
+                <ul class="footer-nav">
+                    <li><a href="/">Home</a></li>
+                    <li><a href="/services/">Services</a></li>
+                    <li><a href="/products/">Products</a></li>
+                    <li><a href="/about/">About Us</a></li>
+                    <li><a href="/reviews/">Reviews</a></li>
+                    <li><a href="/blog/">Blog</a></li>
+                </ul>
+            </div>
+
+            <!-- Support Column -->
+            <div class="footer-col">
+                <h4 class="footer-title">Support</h4>
+                <ul class="footer-nav">
+                    <li><a href="/#help">Help Center</a></li>
+                    <li><a href="/#contact">Contact Us</a></li>
+                    <li><a href="/#faqs">FAQs</a></li>
+                    <li><a href="/#terms">Terms &amp; Conditions</a></li>
+                    <li><a href="/#privacy">Privacy Policy</a></li>
+                </ul>
+            </div>
+
+            <!-- Newsletter Column -->
+            <div class="footer-col footer-newsletter-col">
+                <h4 class="footer-title">Newsletter</h4>
+                <p class="footer-desc">
+                    Stay updated with our latest services and offers.
+                </p>
+                <form class="newsletter-form"
+                    onsubmit="event.preventDefault(); alert('Thank you for subscribing to AdEzy!'); this.reset();">
+                    <div class="newsletter-input-wrapper">
+                        <input type="email" placeholder="Enter your email" required class="newsletter-input">
+                        <button type="submit" class="newsletter-btn" aria-label="Subscribe">
+                            <i class="fa-solid fa-paper-plane"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
         </div>
-        
-        <div class="footer-section">
-            <h3 class="footer-heading">About</h3>
-            <p class="footer-text">
-                AdEzy is a project developed by <strong>MD Fahad Sikder</strong> as part of the Web Development Sessional Course. 
-                This platform serves as a comprehensive freelance marketplace specifically designed for online advertising services, 
-                connecting businesses with skilled professionals in digital marketing, content creation, and promotional services.
-            </p>
-            <p class="footer-text">
-                Our mission is to make quality advertising services accessible to everyone, from small startups to established businesses, 
-                while providing freelancers with a platform to showcase their expertise and grow their careers.
-            </p>
+
+        <div class="footer-bottom">
+            <p>&copy; {% now "Y" %} AdEzy. All rights reserved by Fahad Sikder.</p>
         </div>
-        
-        <div class="footer-section">
-            <h3 class="footer-heading">Contact</h3>
-            <ul class="footer-links">
-                <li>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
-                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
-                        <polyline points="22,6 12,13 2,6"></polyline>
-                    </svg>
-                    <a href="mailto:fahadsikder27@gmail.com">fahadsikder27@gmail.com</a>
-                </li>
-                <li>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 8px;">
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"></path>
-                        <circle cx="12" cy="10" r="3"></circle>
-                    </svg>
-                    Bangladesh
-                </li>
-            </ul>
-        </div>
-    </div>
-    
-    <div class="footer-bottom">
-        <p>&copy; {% now "Y" %} AdEzy. All rights reserved. Developed by <strong>MD Fahad Sikder</strong></p>
     </div>
 </footer>

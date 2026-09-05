@@ -1,148 +1,583 @@
 {% extends 'marketplace/base.html' %}
+{% load static %}
 
-{% block title %}AdEzy - Freelance Marketplace for Online Advertising Services{% endblock %}
+{% block title %}AdEzy - All-in-One Digital Solutions to Grow Your Brand{% endblock %}
 
 {% block content %}
-<!-- Hero Section -->
-<div class="hero-banner">
-    <div class="container">
-        <div class="hero-content">
-            {% if user.is_authenticated %}
-                <h1 class="hero-title">Welcome back, {{ user.username }}</h1>
-                <p class="hero-subtitle">Find the perfect advertising services for your business</p>
-            {% else %}
-                <h1 class="hero-title">Find the perfect <span class="highlight">advertising services</span> for your business</h1>
-                <p class="hero-subtitle">Millions of people use AdEzy to turn their ideas into reality</p>
-            {% endif %}
+<div class="mockup-page-wrapper">
+    <!-- Ambient Background Glows -->
+    <div class="ambient-glow ambient-glow-top-left"></div>
+    <div class="ambient-glow ambient-glow-top-right"></div>
+    <div class="ambient-glow ambient-glow-center"></div>
 
-            <div class="hero-tags">
-                <span>Popular:</span>
-                <a href="#" class="tag">Social Media Marketing</a>
-                <a href="#" class="tag">Google Ads</a>
-                <a href="#" class="tag">Facebook Advertising</a>
-                <a href="#" class="tag">Content Writing</a>
+    <!-- ====================================================
+         1. HERO SECTION (Exactly as in Mockup)
+         ==================================================== -->
+    <section class="hero-mockup-section">
+        <div class="container hero-grid">
+            <!-- Left Hero Content -->
+            <div class="hero-left-content">
+                <div class="hero-sparkle-badge">
+                    <span class="sparkle-diamond">✦</span>
+                    <span>Digital Growth, Simplified.</span>
+                </div>
+
+                <h1 class="hero-headline">
+                    All-in-One Digital<br>
+                    Solutions to <span class="text-gold">Grow</span><br>
+                    <span class="text-gold">Your Brand</span>
+                </h1>
+
+                <p class="hero-description">
+                    Premium digital products and services that help creators, businesses, and entrepreneurs grow faster and smarter.
+                </p>
+
+                <div class="hero-cta-group">
+                    <a href="#popular-services" class="btn-gold-hero">
+                        <span>Explore Services</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </a>
+                    <a href="#featured-products" class="btn-dark-hero">
+                        <span>Browse Products</span>
+                        <i class="fa-solid fa-cart-shopping"></i>
+                    </a>
+                </div>
+
+                <!-- Trust Badges Under Buttons -->
+                <div class="hero-trust-bar">
+                    <div class="trust-item">
+                        <div class="trust-icon-box">
+                            <i class="fa-solid fa-users"></i>
+                        </div>
+                        <div class="trust-text">
+                            <strong>Trusted by 2K+</strong>
+                            <span>Happy Clients</span>
+                        </div>
+                    </div>
+
+                    <div class="trust-item">
+                        <div class="trust-icon-box">
+                            <i class="fa-solid fa-shield-halved"></i>
+                        </div>
+                        <div class="trust-text">
+                            <strong>Premium Quality</strong>
+                            <span>Top-notch Services</span>
+                        </div>
+                    </div>
+
+                    <div class="trust-item">
+                        <div class="trust-icon-box">
+                            <i class="fa-solid fa-bolt-lightning"></i>
+                        </div>
+                        <div class="trust-text">
+                            <strong>Fast Delivery</strong>
+                            <span>On-time, Every time</span>
+                        </div>
+                    </div>
+
+                    <div class="trust-item">
+                        <div class="trust-icon-box">
+                            <i class="fa-solid fa-headset"></i>
+                        </div>
+                        <div class="trust-text">
+                            <strong>24/7 Support</strong>
+                            <span>We're Here to Help</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Hero 3D Card Composition -->
+            <div class="hero-right-visual">
+                <div class="scene-3d-wrapper">
+                    <!-- Glowing Backing Layer -->
+                    <div class="card-ambient-aura"></div>
+
+                    <!-- Main Glass Platform Card -->
+                    <div class="glass-card-main">
+                        <div class="glass-card-shine"></div>
+                        <div class="glass-card-logo">
+                            Ad<span class="text-gold">Ezy</span>
+                        </div>
+                        <div class="glass-card-rating">
+                            <div class="rating-stars-gold">
+                                <i class="fa-solid fa-star"></i>
+                                <i class="fa-solid fa-star"></i>
+                                <i class="fa-solid fa-star"></i>
+                                <i class="fa-solid fa-star"></i>
+                            </div>
+                            <span class="rating-number">4.9</span>
+                        </div>
+                    </div>
+
+                    <!-- Floating 3D Application Badges -->
+                    <!-- 1. YouTube Badge (Top-Left) -->
+                    <div class="float-badge badge-youtube">
+                        <i class="fa-brands fa-youtube"></i>
+                    </div>
+
+                    <!-- 2. Google Badge (Top-Right) -->
+                    <div class="float-badge badge-google">
+                        <i class="fa-brands fa-google"></i>
+                    </div>
+
+                    <!-- 3. Premiere Pro Badge (Bottom-Right) -->
+                    <div class="float-badge badge-pr">
+                        <span>Pr</span>
+                    </div>
+
+                    <!-- 4. Photoshop Badge (Bottom-Left) -->
+                    <div class="float-badge badge-ps">
+                        <span>Ps</span>
+                    </div>
+
+                    <!-- 5. Analytics Chart Badge (Mid-Left) -->
+                    <div class="float-badge badge-analytics">
+                        <i class="fa-solid fa-arrow-trend-up"></i>
+                    </div>
+                </div>
             </div>
         </div>
-    </div>
+    </section>
+
+    <!-- ====================================================
+         2. POPULAR SERVICES SECTION
+         ==================================================== -->
+    <section class="section-popular-services" id="popular-services">
+        <div class="container">
+            <div class="section-title-row">
+                <h2 class="section-heading">
+                    Popular <span class="text-gold">Services</span>
+                </h2>
+                <a href="#all-marketplace-gigs" class="btn-section-link">
+                    <span>View all services</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+
+            <!-- 4 Mockup Service Cards -->
+            <div class="services-cards-grid">
+                <!-- Card 1: Video Editing -->
+                <div class="service-mock-card" onclick="filterByServiceCategory('Video Ads')">
+                    <div class="service-icon-badge badge-indigo">
+                        <i class="fa-solid fa-video"></i>
+                    </div>
+                    <h3 class="service-card-title">Video Editing</h3>
+                    <p class="service-card-desc">High-quality edits that bring your vision to life.</p>
+                    <div class="service-card-action">
+                        <span>Explore</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </div>
+                </div>
+
+                <!-- Card 2: SEO Services -->
+                <div class="service-mock-card" onclick="filterByServiceCategory('SEO Services')">
+                    <div class="service-icon-badge badge-emerald">
+                        <i class="fa-solid fa-arrow-trend-up"></i>
+                    </div>
+                    <h3 class="service-card-title">SEO Services</h3>
+                    <p class="service-card-desc">Rank higher and grow organically with proven SEO.</p>
+                    <div class="service-card-action">
+                        <span>Explore</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </div>
+                </div>
+
+                <!-- Card 3: YouTube Services -->
+                <div class="service-mock-card" onclick="filterByServiceCategory('Google Ads')">
+                    <div class="service-icon-badge badge-crimson">
+                        <i class="fa-brands fa-youtube"></i>
+                    </div>
+                    <h3 class="service-card-title">YouTube Services</h3>
+                    <p class="service-card-desc">Grow your channel with real engagement and subscribers.</p>
+                    <div class="service-card-action">
+                        <span>Explore</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </div>
+                </div>
+
+                <!-- Card 4: Social Media Marketing -->
+                <div class="service-mock-card" onclick="filterByServiceCategory('Social Media Marketing')">
+                    <div class="service-icon-badge badge-magenta">
+                        <i class="fa-brands fa-instagram"></i>
+                    </div>
+                    <h3 class="service-card-title">Social Media Marketing</h3>
+                    <p class="service-card-desc">Boost your presence and engagement across platforms.</p>
+                    <div class="service-card-action">
+                        <span>Explore</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dynamic Marketplace Gigs Grid (Live Database Gigs) -->
+            <div class="marketplace-gigs-subwrapper" id="all-marketplace-gigs">
+                <div class="marketplace-toolbar">
+                    <div class="category-chips" id="categories-container">
+                        <button class="chip-filter active" onclick="filterByCategory('')">All Gigs</button>
+                        <button class="chip-filter" onclick="filterByCategory('Social Media Marketing')">Social Media</button>
+                        <button class="chip-filter" onclick="filterByCategory('Google Ads')">Google Ads</button>
+                        <button class="chip-filter" onclick="filterByCategory('Graphic Design')">Design</button>
+                        <button class="chip-filter" onclick="filterByCategory('Video Ads')">Video Ads</button>
+                        <button class="chip-filter" onclick="filterByCategory('SEO Services')">SEO</button>
+                    </div>
+
+                    <div class="search-status-box" id="search-results-info" style="display: none;">
+                        <span id="search-results-text"></span>
+                        <button onclick="clearSearch()" class="clear-search-btn">
+                            <i class="fa-solid fa-xmark"></i> Clear
+                        </button>
+                    </div>
+                </div>
+
+                <div id="gig-container" class="gigs-grid-dark">
+                    <div class="loading-state">
+                        <i class="fa-solid fa-circle-notch fa-spin"></i> Loading marketplace gigs...
+                    </div>
+                </div>
+
+                <div id="show-more-container" class="show-more-box" style="display: none;">
+                    <button id="show-more-btn" class="btn-dark-pill" onclick="showMoreGigs()">
+                        <span>Load More Gigs</span>
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </button>
+                    <p id="gigs-count-info" class="gigs-counter"></p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ====================================================
+         3. CUSTOM SOLUTIONS CALL TO ACTION BANNER
+         ==================================================== -->
+    <section class="section-custom-banner" id="custom-solutions">
+        <div class="container">
+            <div class="custom-banner-card">
+                <div class="custom-banner-glow"></div>
+                <div class="custom-banner-content">
+                    <div class="custom-banner-text">
+                        <h3 class="custom-banner-heading">
+                            Custom Solutions for<br>Your Unique Goals
+                        </h3>
+                        <p class="custom-banner-sub">
+                            Need something specific? We've got you covered.
+                        </p>
+                        <a href="mailto:support@adezy.com" class="btn-banner-contact">
+                            <span>Contact Us</span>
+                            <i class="fa-solid fa-arrow-right"></i>
+                        </a>
+                    </div>
+
+                    <div class="custom-banner-visual">
+                        <!-- Abstract Metallic Rings Artwork -->
+                        <div class="abstract-ring-art">
+                            <svg viewBox="0 0 400 240" fill="none" xmlns="http://www.w3.org/2000/svg" class="rings-svg">
+                                <defs>
+                                    <linearGradient id="goldPurpleGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                        <stop offset="0%" stop-color="#ffd15c" stop-opacity="0.9"/>
+                                        <stop offset="40%" stop-color="#f5b700" stop-opacity="0.7"/>
+                                        <stop offset="70%" stop-color="#7c3aed" stop-opacity="0.6"/>
+                                        <stop offset="100%" stop-color="#3b82f6" stop-opacity="0.8"/>
+                                    </linearGradient>
+                                    <linearGradient id="metallicViolet" x1="100%" y1="0%" x2="0%" y2="100%">
+                                        <stop offset="0%" stop-color="#a855f7" stop-opacity="0.8"/>
+                                        <stop offset="50%" stop-color="#4f46e5" stop-opacity="0.6"/>
+                                        <stop offset="100%" stop-color="#f5b700" stop-opacity="0.9"/>
+                                    </linearGradient>
+                                    <filter id="glow-filter" x="-20%" y="-20%" width="140%" height="140%">
+                                        <feGaussianBlur stdDeviation="8" result="blur" />
+                                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                    </filter>
+                                </defs>
+                                <!-- Outer Ring -->
+                                <ellipse cx="230" cy="120" rx="140" ry="75" stroke="url(#goldPurpleGrad1)" stroke-width="14" transform="rotate(-18 230 120)" opacity="0.85" filter="url(#glow-filter)" />
+                                <!-- Inner Intersecting Ring -->
+                                <ellipse cx="250" cy="110" rx="110" ry="55" stroke="url(#metallicViolet)" stroke-width="12" transform="rotate(22 250 110)" opacity="0.9" filter="url(#glow-filter)" />
+                                <!-- Center core highlight -->
+                                <circle cx="240" cy="115" r="45" stroke="url(#goldPurpleGrad1)" stroke-width="6" opacity="0.5" />
+                            </svg>
+                        </div>
+
+                        <!-- Customer Social Proof Stack -->
+                        <div class="client-proof-pill">
+                            <div class="avatar-stack">
+                                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Client" class="stack-avatar">
+                                <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80" alt="Client" class="stack-avatar">
+                                <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80" alt="Client" class="stack-avatar">
+                                <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80" alt="Client" class="stack-avatar">
+                            </div>
+                            <span class="proof-caption">Trusted by <strong class="text-gold">2K+</strong> clients</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ====================================================
+         4. FEATURED PRODUCTS SECTION
+         ==================================================== -->
+    <section class="section-featured-products" id="featured-products">
+        <div class="container">
+            <div class="section-title-row">
+                <h2 class="section-heading">
+                    Featured <span class="text-gold">Products</span>
+                </h2>
+                <div class="section-controls">
+                    <button class="slider-nav-btn prev" onclick="scrollProductsList(-1)" aria-label="Previous Products">
+                        <i class="fa-solid fa-chevron-left"></i>
+                    </button>
+                    <button class="slider-nav-btn next" onclick="scrollProductsList(1)" aria-label="Next Products">
+                        <i class="fa-solid fa-chevron-right"></i>
+                    </button>
+                    <a href="#all-marketplace-gigs" class="btn-section-link">
+                        <span>View all products</span>
+                        <i class="fa-solid fa-arrow-right"></i>
+                    </a>
+                </div>
+            </div>
+
+            <!-- 4 Products Cards Grid -->
+            <div class="products-cards-grid" id="products-carousel">
+                <!-- Product 1: YouTube SEO Pack -->
+                <div class="product-mock-card" onclick="window.location.href='/product/yt-seo/'" style="cursor: pointer;">
+                    <div class="product-preview-box yt-preview">
+                        <div class="product-grid-pattern"></div>
+                        <div class="product-preview-text">
+                            <span class="preview-title">YouTube</span>
+                            <span class="preview-sub">SEO Pack</span>
+                        </div>
+                        <div class="product-corner-badge badge-yt">
+                            <i class="fa-brands fa-youtube"></i>
+                        </div>
+                    </div>
+                    <div class="product-card-body">
+                        <h4 class="product-item-title"><a href="/product/yt-seo/">YouTube SEO Pack</a></h4>
+                        <div class="product-item-rating">
+                            <i class="fa-solid fa-star text-gold"></i>
+                            <span class="rating-val">4.9</span>
+                            <span class="reviews-count">(128)</span>
+                        </div>
+                        <div class="product-price-bar">
+                            <span class="product-price">৳ 19.99</span>
+                            <button class="btn-add-cart" onclick="event.stopPropagation(); addProductToCart('yt-seo', 'YouTube SEO Pack', 19.99, 'YouTube Growth')" title="Add to Cart">
+                                <i class="fa-solid fa-cart-shopping"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Product 2: Video Editing Preset Pack -->
+                <div class="product-mock-card" onclick="window.location.href='/product/video-presets/'" style="cursor: pointer;">
+                    <div class="product-preview-box pr-preview">
+                        <div class="product-grid-pattern"></div>
+                        <div class="product-preview-text">
+                            <span class="preview-title">Video Editing</span>
+                            <span class="preview-sub text-purple">Preset Pack</span>
+                        </div>
+                        <div class="product-corner-badge badge-pr-tag">
+                            <span>Pr</span>
+                        </div>
+                    </div>
+                    <div class="product-card-body">
+                        <h4 class="product-item-title"><a href="/product/video-presets/">Video Editing Preset Pack</a></h4>
+                        <div class="product-item-rating">
+                            <i class="fa-solid fa-star text-gold"></i>
+                            <span class="rating-val">4.8</span>
+                            <span class="reviews-count">(95)</span>
+                        </div>
+                        <div class="product-price-bar">
+                            <span class="product-price">৳ 14.99</span>
+                            <button class="btn-add-cart" onclick="event.stopPropagation(); addProductToCart('video-presets', 'Video Editing Preset Pack', 14.99, 'Video Production')" title="Add to Cart">
+                                <i class="fa-solid fa-cart-shopping"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Product 3: YouTube Thumbnail Pack -->
+                <div class="product-mock-card" onclick="window.location.href='/product/yt-thumb/'" style="cursor: pointer;">
+                    <div class="product-preview-box ps-preview">
+                        <div class="product-grid-pattern"></div>
+                        <div class="product-preview-text">
+                            <span class="preview-title">Thumbnail</span>
+                            <span class="preview-sub text-gold">Pack</span>
+                        </div>
+                        <div class="product-corner-badge badge-ps-tag">
+                            <span>Ps</span>
+                        </div>
+                    </div>
+                    <div class="product-card-body">
+                        <h4 class="product-item-title"><a href="/product/yt-thumb/">YouTube Thumbnail Pack</a></h4>
+                        <div class="product-item-rating">
+                            <i class="fa-solid fa-star text-gold"></i>
+                            <span class="rating-val">4.9</span>
+                            <span class="reviews-count">(156)</span>
+                        </div>
+                        <div class="product-price-bar">
+                            <span class="product-price">৳ 9.99</span>
+                            <button class="btn-add-cart" onclick="event.stopPropagation(); addProductToCart('yt-thumb', 'YouTube Thumbnail Pack', 9.99, 'YouTube Growth')" title="Add to Cart">
+                                <i class="fa-solid fa-cart-shopping"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Product 4: Instagram Growth Pack -->
+                <div class="product-mock-card" onclick="window.location.href='/product/insta-growth/'" style="cursor: pointer;">
+                    <div class="product-preview-box insta-preview">
+                        <div class="product-grid-pattern"></div>
+                        <div class="product-preview-text">
+                            <span class="preview-title">Instagram</span>
+                            <span class="preview-sub text-pink">Growth Pack</span>
+                        </div>
+                        <div class="product-corner-badge badge-insta-tag">
+                            <i class="fa-brands fa-instagram"></i>
+                        </div>
+                    </div>
+                    <div class="product-card-body">
+                        <h4 class="product-item-title"><a href="/product/insta-growth/">Instagram Growth Pack</a></h4>
+                        <div class="product-item-rating">
+                            <i class="fa-solid fa-star text-gold"></i>
+                            <span class="rating-val">4.7</span>
+                            <span class="reviews-count">(87)</span>
+                        </div>
+                        <div class="product-price-bar">
+                            <span class="product-price">৳ 12.99</span>
+                            <button class="btn-add-cart" onclick="event.stopPropagation(); addProductToCart('insta-growth', 'Instagram Growth Pack', 12.99, 'Social Media')" title="Add to Cart">
+                                <i class="fa-solid fa-cart-shopping"></i>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ====================================================
+         5. WHAT OUR CLIENTS SAY (REVIEWS SECTION)
+         ==================================================== -->
+    <section class="section-reviews" id="reviews">
+        <div class="container">
+            <div class="section-title-row">
+                <h2 class="section-heading">
+                    What Our <span class="text-gold">Clients</span> Say
+                </h2>
+                <a href="#reviews" class="btn-section-link">
+                    <span>View all reviews</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </a>
+            </div>
+
+            <!-- 4 Testimonial Cards -->
+            <div class="reviews-cards-grid">
+                <!-- Review 1: John D. -->
+                <div class="review-mock-card">
+                    <div class="review-author-row">
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80" alt="John D." class="review-avatar">
+                        <div class="review-author-meta">
+                            <h4 class="author-name">John D.</h4>
+                            <span class="author-role">YouTuber</span>
+                        </div>
+                    </div>
+                    <div class="review-stars-gold">
+                        <i class="fa-solid fa-star"></i>
+                        <i class="fa-solid fa-star"></i>
+                        <i class="fa-solid fa-star"></i>
+                        <i class="fa-solid fa-star"></i>
+                        <i class="fa-solid fa-star"></i>
+                    </div>
+                    <p class="review-quote-text">
+                        "AdEzy helped me grow my channel faster than I expected. Top-notch service!"
+                    </p>
+                </div>
+
+                <!-- Review 2: Sarah K. -->
+                <div class="review-mock-card">
+                    <div class="review-author-row">
+                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" alt="Sarah K." class="review-avatar">
+                        <div class="review-author-meta">
+                            <h4 class="author-name">Sarah K.</h4>
+                            <span class="author-role">Business Owner</span>
+                        </div>
+                    </div>
+                    <div class="review-stars-gold">
+                        <i class="fa-solid fa-star"></i>
+                        <i class="fa-solid fa-star"></i>
+                        <i class="fa-solid fa-star"></i>
+                        <i class="fa-solid fa-star"></i>
+                        <i class="fa-solid fa-star"></i>
+                    </div>
+                    <p class="review-quote-text">
+                        "Their SEO service improved my website ranking and brought real results."
+                    </p>
+                </div>
+
+                <!-- Review 3: Mike L. -->
+                <div class="review-mock-card">
+                    <div class="review-author-row">
+                        <img src="https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=100&auto=format&fit=crop&q=80" alt="Mike L." class="review-avatar">
+                        <div class="review-author-meta">
+                            <h4 class="author-name">Mike L.</h4>
+                            <span class="author-role">Content Creator</span>
+                        </div>
+                    </div>
+                    <div class="review-stars-gold">
+                        <i class="fa-solid fa-star"></i>
+                        <i class="fa-solid fa-star"></i>
+                        <i class="fa-solid fa-star"></i>
+                        <i class="fa-solid fa-star"></i>
+                        <i class="fa-solid fa-star"></i>
+                    </div>
+                    <p class="review-quote-text">
+                        "The video editing quality is amazing. Will definitely come back!"
+                    </p>
+                </div>
+
+                <!-- Review 4: Emma T. -->
+                <div class="review-mock-card">
+                    <div class="review-author-row">
+                        <img src="https://images.unsplash.com/photo-1517841905240-472988babdf9?w=100&auto=format&fit=crop&q=80" alt="Emma T." class="review-avatar">
+                        <div class="review-author-meta">
+                            <h4 class="author-name">Emma T.</h4>
+                            <span class="author-role">Entrepreneur</span>
+                        </div>
+                    </div>
+                    <div class="review-stars-gold">
+                        <i class="fa-solid fa-star"></i>
+                        <i class="fa-solid fa-star"></i>
+                        <i class="fa-solid fa-star"></i>
+                        <i class="fa-solid fa-star"></i>
+                        <i class="fa-solid fa-star"></i>
+                    </div>
+                    <p class="review-quote-text">
+                        "Reliable, fast, and professional. Highly recommend AdEzy!"
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
 </div>
+{% endblock %}
 
-<!-- Popular Services Section (Moved before categories) -->
-<section class="services-section" id="popular-services">
-    <div class="container">
-        <div class="section-header">
-            <h2 class="section-title">Popular services</h2>
-            <div class="section-tabs">
-                <button class="tab-filter active" data-filter="all">All</button>
-                <button class="tab-filter" data-filter="top-rated">Top Rated</button>
-                <button class="tab-filter" data-filter="new">New Arrivals</button>
-            </div>
-        </div>
+{% block extra_js %}
+<script>
+// Filter by category helper from service cards
+function filterByServiceCategory(categoryName) {
+    const target = document.getElementById('all-marketplace-gigs');
+    if (target) {
+        target.scrollIntoView({ behavior: 'smooth' });
+    }
+    if (typeof filterByCategory === 'function') {
+        filterByCategory(categoryName);
+    }
+}
 
-        <!-- Search Results Info -->
-        <div id="search-results-info" style="display: none; margin-bottom: 20px; padding: 15px; background: #f1f5f9; border-radius: 8px; text-align: center; color: #64748b;">
-            <span id="search-results-text"></span>
-            <button onclick="clearSearch()" style="margin-left: 10px; background: none; border: none; color: var(--gold); cursor: pointer; text-decoration: underline;">Clear search</button>
-        </div>
-        
-        <!-- Gigs Container (Populated by JavaScript) -->
-        <div id="gig-container" class="gigs-grid">
-            <div class="loading">Discovering popular services...</div>
-        </div>
-        
-        <!-- Show More Button -->
-        <div id="show-more-container" style="text-align: center; margin-top: 40px; display: none;">
-            <button id="show-more-btn" class="btn btn-secondary" onclick="showMoreGigs()" style="padding: 15px 40px; font-size: 1.05rem;">
-                <i class="fas fa-chevron-down"></i> Show More Gigs
-            </button>
-            <p id="gigs-count-info" style="margin-top: 15px; color: #64748b; font-size: 0.95rem;"></p>
-        </div>
-    </div>
-</section>
-
-<!-- Category Section -->
-<section class="categories-section">
-    <div class="container">
-        <h2 class="section-title">Browse by category</h2>
-        <div class="categories-grid" id="categories-container">
-            <div class="category-card" onclick="filterByCategory('Social Media Marketing')">
-                <div class="category-icon">📱</div>
-                <h3>Social Media Marketing</h3>
-            </div>
-            <div class="category-card" onclick="filterByCategory('Google Ads')">
-                <div class="category-icon">🎯</div>
-                <h3>Google Ads</h3>
-            </div>
-            <div class="category-card" onclick="filterByCategory('Facebook Ads')">
-                <div class="category-icon">📊</div>
-                <h3>Facebook Ads</h3>
-            </div>
-            <div class="category-card" onclick="filterByCategory('Content Writing')">
-                <div class="category-icon">✍️</div>
-                <h3>Content Writing</h3>
-            </div>
-            <div class="category-card" onclick="filterByCategory('Graphic Design')">
-                <div class="category-icon">🎨</div>
-                <h3>Graphic Design</h3>
-            </div>
-            <div class="category-card" onclick="filterByCategory('Email Marketing')">
-                <div class="category-icon">📧</div>
-                <h3>Email Marketing</h3>
-            </div>
-            <div class="category-card" onclick="filterByCategory('SEO Services')">
-                <div class="category-icon">🔍</div>
-                <h3>SEO Services</h3>
-            </div>
-            <div class="category-card" onclick="filterByCategory('Video Ads')">
-                <div class="category-icon">📹</div>
-                <h3>Video Ads</h3>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- Features Section -->
-<section class="features-section">
-    <div class="container">
-        <h2 class="section-title text-center">Why choose AdEzy?</h2>
-        <div class="features-grid">
-            <div class="feature-card">
-                <div class="feature-icon">⚡</div>
-                <h3>Quick Turnaround</h3>
-                <p>Get your advertising campaigns launched in days, not weeks</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">💰</div>
-                <h3>Affordable Pricing</h3>
-                <p>Services starting from just 100 Taka. Pay only for what you need</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">⭐</div>
-                <h3>Quality Work</h3>
-                <p>Verified sellers with proven track records and reviews</p>
-            </div>
-            <div class="feature-card">
-                <div class="feature-icon">🔒</div>
-                <h3>Secure Payments</h3>
-                <p>Your money is protected until you're 100% satisfied</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-<!-- CTA Section -->
-{% if not user.is_authenticated %}
-<section class="cta-section">
-    <div class="container">
-        <div class="cta-content">
-            <h2>Ready to get started?</h2>
-            <p>Join thousands of businesses growing with AdEzy</p>
-            <div class="cta-buttons">
-                <a href="{% url 'register' %}" class="btn btn-primary btn-large">Sign Up</a>
-                <a href="{% url 'login' %}" class="btn btn-secondary btn-large">Sign In</a>
-            </div>
-        </div>
-    </div>
-</section>
-{% endif %}
-
+function scrollProductsList(direction) {
+    const carousel = document.getElementById('products-carousel');
+    if (carousel) {
+        carousel.scrollBy({ left: direction * 320, behavior: 'smooth' });
+    }
+}
+</script>
 {% endblock %}

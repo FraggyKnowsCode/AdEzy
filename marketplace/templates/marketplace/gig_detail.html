@@ -1,246 +1,276 @@
+{% extends 'marketplace/base.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gig Details - AdEzy</title>
-    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-</head>
-<body>
-    {% include 'marketplace/header.html' %}
 
-    <!-- Gig Detail Container -->
-    <div class="container" style="margin-top: 100px; max-width: 1200px;">
-        <div id="gig-detail-container">
-            <div class="loading">Loading gig details...</div>
-        </div>
-        
-        <!-- Suggested Gigs Section -->
-        <div id="suggested-gigs-container" style="margin-top: 60px; margin-bottom: 60px;">
-            <h2 class="section-title" style="text-align: center; margin-bottom: 30px;">More Gigs You May Like</h2>
-            <div id="suggested-gigs-grid" class="gigs-grid">
-                <div class="loading">Loading suggestions...</div>
-            </div>
-        </div>
-    </div>
+{% block title %}{{ gig.title|default:"Gig Details" }} - AdEzy{% endblock %}
 
-    <!-- Order Modal -->
-    <div id="order-modal" class="modal hidden">
-        <div class="modal-overlay" onclick="closeModal()"></div>
-        <div class="modal-box">
-            <button class="modal-close" onclick="closeModal()">&times;</button>
-            <div id="modal-content"></div>
-        </div>
-    </div>
+{% block content %}
+<div class="gig-detail-page">
+    <div class="container">
+        <!-- Breadcrumb Navigation -->
+        <nav class="gig-breadcrumbs" aria-label="Breadcrumb">
+            <a href="/"><i class="fa-solid fa-house"></i> Home</a>
+            <i class="fa-solid fa-chevron-right breadcrumb-sep"></i>
+            <a href="/services/">Services</a>
+            <i class="fa-solid fa-chevron-right breadcrumb-sep"></i>
+            {% if gig.category %}
+                <a href="/services/?category={{ gig.category.name }}">{{ gig.category.name }}</a>
+                <i class="fa-solid fa-chevron-right breadcrumb-sep"></i>
+            {% endif %}
+            <span class="breadcrumb-current">{{ gig.title }}</span>
+        </nav>
 
-    <!-- Earnings Modal -->
-    <div id="earnings-modal" class="modal hidden">
-        <div class="modal-overlay" onclick="closeEarningsModal()"></div>
-        <div class="modal-box" style="max-width: 700px;">
-            <button class="modal-close" onclick="closeEarningsModal()">&times;</button>
-            <div id="earnings-modal-content">
-                <div class="loading">Loading earnings...</div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Messages Modal -->
-    <div id="messages-modal" class="modal" style="display: none;">
-        <div class="modal-overlay" onclick="closeMessagesModal()"></div>
-        <div class="modal-box" style="max-width: 700px;">
-            <button class="modal-close" onclick="closeMessagesModal()">&times;</button>
-            <div id="messages-modal-content">
-                <div class="loading">Loading messages...</div>
-            </div>
-        </div>
-    </div>
-
-    <script src="{% static 'js/main.js' %}"></script>
-    <script>
-        // Load gig details when page loads
-        document.addEventListener('DOMContentLoaded', () => {
-            const gigId = window.location.pathname.split('/').filter(p => p)[1];
-            loadGigDetail(gigId);
-            loadSuggestedGigs(gigId);
-        });
-
-        async function loadGigDetail(gigId) {
-            const container = document.getElementById('gig-detail-container');
-            
-            try {
-                const response = await fetch(`/api/gigs/${gigId}/`);
-                
-                if (!response.ok) {
-                    throw new Error('Gig not found');
-                }
-                
-                const gig = await response.json();
-                
-                container.innerHTML = `
-                    <div class="gig-detail-layout">
-                        <!-- Left Side: Image and About -->
-                        <div class="gig-detail-main">
-                            <div class="gig-detail-image-container">
-                                <img src="${gig.image_url}" alt="${gig.title}" class="gig-detail-image">
-                            </div>
-                            
-                            <div class="gig-detail-section">
-                                <h2 class="section-title">About This Gig</h2>
-                                <div class="gig-description-text">
-                                    ${gig.description}
-                                </div>
-                            </div>
-                            
-                            <div class="gig-detail-section">
-                                <h3 class="section-subtitle">What You'll Get</h3>
-                                <ul class="gig-features-list">
-                                    <li><i class="fas fa-check-circle"></i> Professional service delivery</li>
-                                    <li><i class="fas fa-check-circle"></i> ${gig.delivery_time} days turnaround time</li>
-                                    <li><i class="fas fa-check-circle"></i> Quality guaranteed work</li>
-                                    <li><i class="fas fa-check-circle"></i> Responsive communication</li>
-                                </ul>
-                            </div>
-                            
-                            <div class="gig-detail-section">
-                                <h3 class="section-subtitle">About The Seller</h3>
-                                <div class="seller-info-box">
-                                    <div class="seller-avatar-large">
-                                        ${gig.seller_name.charAt(0).toUpperCase()}
-                                    </div>
-                                    <div class="seller-details">
-                                        <h4>${gig.seller_name}</h4>
-                                        <p class="seller-bio">Professional freelancer specializing in ${gig.category}</p>
-                                        ${gig.rating && gig.rating > 0 ? `
-                                            <div class="seller-rating">
-                                                <span class="rating-stars">⭐ ${gig.rating.toFixed(1)}</span>
-                                                <span class="rating-text">(${gig.total_reviews || 0} reviews)</span>
-                                            </div>
-                                        ` : ''}
-                                    </div>
-                                </div>
+        <!-- Main Gig Detail Layout (2 Columns) -->
+        <div class="gig-layout-grid">
+            <!-- Left Column: Details & Media -->
+            <div class="gig-main-col">
+                <!-- Gig Title Header -->
+                <div class="gig-header-info">
+                    <span class="gig-category-badge">
+                        <i class="fa-solid fa-tag"></i> {{ gig.category.name|default:"Digital Service" }}
+                    </span>
+                    <h1 class="gig-page-title">{{ gig.title }}</h1>
+                    
+                    <div class="gig-seller-quick-bar">
+                        <div class="seller-avatar-bubble">
+                            {{ gig.seller.username|slice:":1"|upper }}
+                        </div>
+                        <div class="seller-quick-meta">
+                            <span class="seller-name-tag">By <strong>{{ gig.seller.username }}</strong></span>
+                            <div class="seller-score">
+                                <i class="fa-solid fa-star text-gold"></i>
+                                <strong>4.9</strong>
+                                <span class="review-counter">(120+ reviews)</span>
                             </div>
                         </div>
-                        
-                        <!-- Right Side: Order Card (Sticky) -->
-                        <div class="gig-detail-sidebar">
-                            <div class="gig-order-card glass-panel sticky-sidebar">
-                                <div class="gig-price-section">
-                                    <span class="gig-price-label">Price</span>
-                                    <span class="gig-price-amount">${gig.price} Taka</span>
-                                </div>
-                                
-                                <div class="gig-seller-info">
-                                    <div class="gig-seller-avatar">
-                                        ${gig.seller_name.charAt(0).toUpperCase()}
-                                    </div>
-                                    <div>
-                                        <div class="gig-seller-label">Seller</div>
-                                        <div class="gig-seller-name">${gig.seller_name}</div>
-                                    </div>
-                                </div>
-                                
-                                ${gig.rating && gig.rating > 0 ? `
-                                    <div class="gig-rating-box">
-                                        <span class="rating-stars">⭐ ${gig.rating.toFixed(1)}</span>
-                                        <span class="rating-reviews">(${gig.total_reviews || 0} reviews)</span>
-                                    </div>
-                                ` : ''}
-                                
-                                <div class="gig-info-list">
-                                    <div class="gig-info-item">
-                                        <i class="fas fa-clock"></i>
-                                        <span>${gig.delivery_time} Days Delivery</span>
-                                    </div>
-                                    <div class="gig-info-item">
-                                        <i class="fas fa-tag"></i>
-                                        <span>${gig.category}</span>
-                                    </div>
-                                    ${gig.total_orders ? `
-                                        <div class="gig-info-item">
-                                            <i class="fas fa-shopping-cart"></i>
-                                            <span>${gig.total_orders} Orders Completed</span>
-                                        </div>
-                                    ` : ''}
-                                </div>
-                                
-                                {% if user.is_authenticated %}
-                                    <button class="btn btn-primary btn-block btn-large" onclick="handleOrder(${gig.id})">
-                                        <i class="fas fa-shopping-cart"></i> Order Now
-                                    </button>
-                                {% else %}
-                                    <a href="/login/" class="btn btn-primary btn-block btn-large">
-                                        <i class="fas fa-sign-in-alt"></i> Login to Order
-                                    </a>
-                                {% endif %}
+                        <div class="delivery-time-pill">
+                            <i class="fa-regular fa-clock"></i> {{ gig.delivery_time }} Days Delivery
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Showcase Media Banner -->
+                <div class="gig-media-container">
+                    {% if gig.image %}
+                        <img src="{{ gig.image.url }}" alt="{{ gig.title }}" class="gig-primary-img">
+                    {% else %}
+                        <img src="{% static 'images/default-gig.jpg' %}" alt="{{ gig.title }}" class="gig-primary-img" onerror="this.src='https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=1200&auto=format&fit=crop&q=80'">
+                    {% endif %}
+                    <div class="gig-media-overlay">
+                        <span class="verified-badge"><i class="fa-solid fa-shield-check"></i> Verified Service</span>
+                    </div>
+                </div>
+
+                <!-- About This Service Section -->
+                <div class="gig-section-card">
+                    <h2 class="gig-card-heading">
+                        <i class="fa-solid fa-circle-info text-gold"></i> About This Service
+                    </h2>
+                    <div class="gig-description-body">
+                        {{ gig.description|linebreaks }}
+                    </div>
+                </div>
+
+                <!-- Deliverables / What You Will Get -->
+                <div class="gig-section-card">
+                    <h2 class="gig-card-heading">
+                        <i class="fa-solid fa-list-check text-gold"></i> What You'll Receive
+                    </h2>
+                    <div class="deliverables-grid">
+                        <div class="deliverable-item">
+                            <div class="check-circle"><i class="fa-solid fa-check"></i></div>
+                            <div>
+                                <strong>Professional Execution</strong>
+                                <p>Delivered strictly according to industry standards and creative brief.</p>
+                            </div>
+                        </div>
+                        <div class="deliverable-item">
+                            <div class="check-circle"><i class="fa-solid fa-check"></i></div>
+                            <div>
+                                <strong>Guaranteed Turnaround</strong>
+                                <p>On-time completion within {{ gig.delivery_time }} business days.</p>
+                            </div>
+                        </div>
+                        <div class="deliverable-item">
+                            <div class="check-circle"><i class="fa-solid fa-check"></i></div>
+                            <div>
+                                <strong>Commercial Rights Included</strong>
+                                <p>Full commercial usage and high-resolution assets provided.</p>
+                            </div>
+                        </div>
+                        <div class="deliverable-item">
+                            <div class="check-circle"><i class="fa-solid fa-check"></i></div>
+                            <div>
+                                <strong>Responsive Communication</strong>
+                                <p>Direct messaging and status updates through your client dashboard.</p>
                             </div>
                         </div>
                     </div>
-                `;
-                
-            } catch (error) {
-                console.error('Error loading gig:', error);
-                container.innerHTML = `
-                    <div class="empty-state">
-                        <i class="fas fa-exclamation-circle" style="font-size: 4rem; color: #ef4444;"></i>
-                        <h2>Gig Not Found</h2>
-                        <p>The gig you're looking for doesn't exist or has been removed.</p>
-                        <a href="/" class="btn btn-primary">Back to Home</a>
-                    </div>
-                `;
-            }
-        }
-        
-        async function loadSuggestedGigs(currentGigId) {
-            const container = document.getElementById('suggested-gigs-container');
-            if (!container) return;
-            
-            try {
-                const response = await fetch('/api/gigs/');
-                if (!response.ok) throw new Error('Failed to fetch gigs');
-                
-                const data = await response.json();
-                const suggestedGigs = data.gigs.filter(g => g.id != currentGigId).slice(0, 4);
-                
-                if (suggestedGigs.length === 0) {
-                    container.style.display = 'none';
-                    return;
-                }
-                
-                let gigsHTML = '';
-                suggestedGigs.forEach(gig => {
-                    gigsHTML += `
-                        <div class="gig-card" onclick="window.location.href='/gig/${gig.id}/'">
-                            <img src="${gig.image_url}" alt="${gig.title}" class="gig-card-image">
-                            <div class="gig-card-content">
-                                <h3 class="gig-card-title">${gig.title}</h3>
-                                <p class="gig-card-seller">by ${gig.seller_name}</p>
-                                ${gig.rating && gig.rating > 0 ? `
-                                    <div class="gig-card-rating">
-                                        <span class="rating-stars">⭐ ${gig.rating.toFixed(1)}</span>
-                                        <span class="rating-reviews">(${gig.total_reviews})</span>
-                                    </div>
-                                ` : ''}
-                                <span class="gig-card-category">${gig.category}</span>
+                </div>
+
+                <!-- Freelancer Profile Card -->
+                <div class="gig-section-card">
+                    <h2 class="gig-card-heading">
+                        <i class="fa-solid fa-user-tie text-gold"></i> About The Freelancer
+                    </h2>
+                    <div class="freelancer-profile-box">
+                        <div class="freelancer-avatar-large">
+                            {{ gig.seller.username|slice:":1"|upper }}
+                        </div>
+                        <div class="freelancer-details">
+                            <h3>{{ gig.seller.username }}</h3>
+                            <p class="freelancer-tagline">Specialist in {{ gig.category.name|default:"Digital Marketing & Creative" }}</p>
+                            <div class="freelancer-stats-bar">
+                                <div class="fstat-item">
+                                    <span class="fstat-label">Rating</span>
+                                    <strong class="fstat-val"><i class="fa-solid fa-star text-gold"></i> 4.9</strong>
+                                </div>
+                                <div class="fstat-item">
+                                    <span class="fstat-label">Response Time</span>
+                                    <strong class="fstat-val">&lt; 1 Hour</strong>
+                                </div>
+                                <div class="fstat-item">
+                                    <span class="fstat-label">Order Success</span>
+                                    <strong class="fstat-val">100%</strong>
+                                </div>
                             </div>
-                            <div class="gig-card-footer">
-                                <div class="gig-card-price">${gig.price} Taka</div>
-                                <button class="btn-order" onclick="event.stopPropagation(); window.location.href='/gig/${gig.id}/'">View Details</button>
+                            <div style="margin-top: 14px;">
+                                <button class="btn-chat-seller-pill" onclick="openChatWithUser('{{ gig.seller.username }}', '{{ gig.title|escapejs }}')">
+                                    <i class="fa-solid fa-comments text-gold"></i> Message {{ gig.seller.username }}
+                                </button>
                             </div>
                         </div>
-                    `;
-                });
-                
-                document.getElementById('suggested-gigs-grid').innerHTML = gigsHTML;
-                
-            } catch (error) {
-                console.error('Error loading suggested gigs:', error);
-                container.style.display = 'none';
-            }
-        }
-    </script>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Sticky Pricing & Order Widget -->
+            <div class="gig-sidebar-col">
+                <div class="sticky-order-box">
+                    <div class="order-box-header">
+                        <span class="package-tag">Standard Package</span>
+                        <div class="package-price">
+                            <span class="price-symbol">৳</span>
+                            <span class="price-val">{{ gig.price }}</span>
+                        </div>
+                    </div>
+
+                    <div class="order-box-body">
+                        <p class="package-summary-text">
+                            Full-service delivery for <strong>{{ gig.title }}</strong> with revisions and dedicated support.
+                        </p>
+
+                        <div class="package-specs-list">
+                            <div class="spec-row">
+                                <span><i class="fa-solid fa-clock text-gold"></i> Delivery Time</span>
+                                <strong>{{ gig.delivery_time }} Days</strong>
+                            </div>
+                            <div class="spec-row">
+                                <span><i class="fa-solid fa-arrows-rotate text-gold"></i> Revisions</span>
+                                <strong>Unlimited</strong>
+                            </div>
+                            <div class="spec-row">
+                                <span><i class="fa-solid fa-headset text-gold"></i> Support</span>
+                                <strong>24/7 Priority</strong>
+                            </div>
+                        </div>
+
+                        <!-- CTA Buttons -->
+                        <div class="order-box-actions">
+                            <button class="btn-order-cart" onclick="addServiceToCart({{ gig.id }}, '{{ gig.title|escapejs }}', {{ gig.price }}, '{{ gig.seller.username|escapejs }}', {{ gig.delivery_time }})" style="width: 100%; margin-bottom: 10px;">
+                                <i class="fa-solid fa-cart-plus"></i> Add Service to Cart
+                            </button>
+
+                            {% if user.is_authenticated %}
+                                <button class="btn-order-primary" onclick="handleOrder({{ gig.id }})">
+                                    <i class="fa-solid fa-bolt"></i> Instant Order Now ({{ gig.price }} ৳)
+                                </button>
+                            {% else %}
+                                <a href="/login/?next=/gig/{{ gig.id }}/" class="btn-order-primary">
+                                    <i class="fa-solid fa-right-to-bracket"></i> Sign In to Order ({{ gig.price }} ৳)
+                                </a>
+                            {% endif %}
+                            
+                            <a href="/services/" class="btn-back-services">
+                                <i class="fa-solid fa-arrow-left"></i> Browse Other Services
+                            </a>
+                        </div>
+
+                        <!-- Trust / Escrow Guarantee Badge -->
+                        <div class="order-trust-notice">
+                            <i class="fa-solid fa-shield-halved"></i>
+                            <div>
+                                <strong>AdEzy Payment Protection</strong>
+                                <p>Funds held in escrow until you approve the delivered work.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Related Gigs Section -->
+        <div class="related-gigs-section" id="suggested-gigs-container">
+            <div class="section-title-row">
+                <h2 class="section-heading">More Gigs <span class="text-gold">You May Like</span></h2>
+                <a href="/services/" class="view-all-link">View all services <i class="fa-solid fa-arrow-right"></i></a>
+            </div>
+            <div id="suggested-gigs-grid" class="gigs-showcase-grid">
+                <div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i> Loading suggestions...</div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    loadSuggestedGigs({{ gig.id }});
+});
+
+async function loadSuggestedGigs(currentGigId) {
+    const container = document.getElementById('suggested-gigs-grid');
+    if (!container) return;
     
-    {% include 'marketplace/footer.html' %}
-</body>
-</html>
+    try {
+        const response = await fetch('/api/gigs/');
+        if (!response.ok) return;
+        const data = await response.json();
+        
+        const gigs = (data.gigs || []).filter(g => g.id != currentGigId).slice(0, 4);
+        if (gigs.length === 0) {
+            container.innerHTML = '<p style="color: var(--text-muted); text-align: center;">No additional gigs available at this time.</p>';
+            return;
+        }
+
+        container.innerHTML = gigs.map(g => `
+            <div class="gig-preview-card" onclick="window.location.href='/gig/${g.id}/'">
+                <div class="gig-card-img-wrap">
+                    <img src="${g.image_url}" alt="${g.title}" onerror="this.src='/static/images/default-gig.jpg'">
+                    <span class="gig-cat-tag">${g.category || 'Service'}</span>
+                </div>
+                <div class="gig-card-content">
+                    <div class="gig-seller-mini">
+                        <span class="seller-mini-avatar">${(g.seller_name || 'U').charAt(0).toUpperCase()}</span>
+                        <span class="seller-mini-name">${g.seller_name}</span>
+                    </div>
+                    <h3 class="gig-preview-title">${g.title}</h3>
+                    <div class="gig-preview-footer">
+                        <div class="gig-preview-rating">
+                            <i class="fa-solid fa-star text-gold"></i>
+                            <span>4.9</span>
+                        </div>
+                        <div class="gig-preview-price">
+                            <span class="starting-from">Starting at</span>
+                            <strong>${g.price} ৳</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `).join('');
+    } catch (e) {
+        console.error('Error loading suggestions:', e);
+    }
+}
+</script>
+{% endblock %}

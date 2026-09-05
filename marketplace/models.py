@@ -8,7 +8,7 @@ class UserProfile(models.Model):
     virtual_credits = models.DecimalField(
         max_digits=10, 
         decimal_places=2, 
-        default=1000.00,
+        default=5000.00,
         validators=[MinValueValidator(0)]
     )
     is_seller_mode = models.BooleanField(default=False)
@@ -151,15 +151,20 @@ class Transaction(models.Model):
 
 
 class Message(models.Model):
-    """Messages between buyer and seller for an order"""
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='messages')
+    """Messages between buyer and seller for an order or direct chat"""
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='messages', null=True, blank=True)
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')
-    message = models.TextField()
+    recipient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='received_messages', null=True, blank=True)
+    message = models.TextField(blank=True)
+    attachment = models.FileField(upload_to='chat_attachments/', null=True, blank=True)
+    attachment_name = models.CharField(max_length=255, blank=True, null=True)
+    attachment_type = models.CharField(max_length=50, blank=True, null=True) # 'image', 'document'
     created_at = models.DateTimeField(auto_now_add=True)
     is_read = models.BooleanField(default=False)
 
     def __str__(self):
-        return f"Message from {self.sender.username} on Order #{self.order.id}"
+        target = f"Order #{self.order.id}" if self.order else f"User {self.recipient.username if self.recipient else 'Direct'}"
+        return f"Message from {self.sender.username} to {target}"
 
     class Meta:
         ordering = ['created_at']
@@ -267,3 +272,17 @@ class CashoutRequest(models.Model):
         ordering = ['-created_at']
         verbose_name = 'Cashout Request'
         verbose_name_plural = 'Cashout Requests'
+
+
+# Auto-create UserProfile with 5000 Taka for every new user
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+@receiver(post_save, sender=User)
+def ensure_user_profile(sender, instance, created, **kwargs):
+    if created:
+        UserProfile.objects.get_or_create(
+            user=instance,
+            defaults={'virtual_credits': 5000.00}
+        )
+

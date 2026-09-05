@@ -9,11 +9,16 @@ from dotenv import load_dotenv
 # Load environment variables from .env file
 load_dotenv()
 
-# Use pymysql as MySQLdb replacement (only if not using Supabase)
+# Database selection
 USE_SUPABASE = os.getenv('USE_SUPABASE', 'False') == 'True'
-if not USE_SUPABASE:
-    import pymysql
-    pymysql.install_as_MySQLdb()
+USE_SQLITE = os.getenv('USE_SQLITE', 'False') == 'True'
+
+if not USE_SUPABASE and not USE_SQLITE:
+    try:
+        import pymysql
+        pymysql.install_as_MySQLdb()
+    except ImportError:
+        pass
 
 # Supabase configuration
 SUPABASE_DB_HOST = os.getenv('SUPABASE_DB_HOST', '')
@@ -31,10 +36,10 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'django-insecure-change-this-in-production-
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = os.getenv('DEBUG', 'True') == 'True'
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+ALLOWED_HOSTS = [h.strip() for h in os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost,.vercel.app,*').split(',') if h.strip()]
 
 # CSRF Settings
-CSRF_TRUSTED_ORIGINS = os.getenv('CSRF_TRUSTED_ORIGINS', 'http://127.0.0.1:8000,http://localhost:8000').split(',')
+CSRF_TRUSTED_ORIGINS = [o.strip() for o in os.getenv('CSRF_TRUSTED_ORIGINS', 'http://127.0.0.1:8000,http://localhost:8000,https://*.vercel.app').split(',') if o.strip()]
 
 # Application definition
 INSTALLED_APPS = [
@@ -94,7 +99,15 @@ if USE_SUPABASE:
                 'sslmode': 'require',
                 'connect_timeout': 10,
             },
-            'CONN_MAX_AGE': 0,
+            'CONN_MAX_AGE': 600,
+        }
+    }
+elif USE_SQLITE:
+    # SQLite Configuration
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
         }
     }
 else:
@@ -113,22 +126,6 @@ else:
             }
         }
     }
-
-# SQLite Configuration (backup)
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
-
-# SQLite Configuration (backup - comment out when using MySQL)
-# DATABASES = {
-#     'default': {
-#         'ENGINE': 'django.db.backends.sqlite3',
-#         'NAME': BASE_DIR / 'db.sqlite3',
-#     }
-# }
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
@@ -155,10 +152,10 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'static']
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATIC_ROOT = BASE_DIR / 'staticfiles_build' / 'static'
 
 # WhiteNoise configuration for serving static files
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STATICFILES_STORAGE = 'whitenoise.storage.CompressedStaticFilesStorage'
 
 # Media files (User uploads)
 MEDIA_URL = '/media/'

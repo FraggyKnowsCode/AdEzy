@@ -10,7 +10,7 @@
             
             {% if messages %}
                 {% for message in messages %}
-                    <div style="padding: 15px; margin-bottom: 20px; background: {% if message.tags == 'error' %}#fee; border: 1px solid #fcc{% else %}#efe; border: 1px solid #cfc{% endif %}; border-radius: 8px; color: var(--deep-blue);">
+                    <div class="alert-box {% if message.tags == 'error' %}alert-error{% else %}alert-success{% endif %}">
                         {{ message }}
                     </div>
                 {% endfor %}
@@ -20,21 +20,21 @@
                 {% csrf_token %}
                 
                 <div style="margin-bottom: 20px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--deep-blue);">
-                        Username
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #f1f5f9;">
+                        Username or Email
                     </label>
                     <input 
                         type="text" 
                         name="username" 
                         class="search-input" 
-                        placeholder="Enter your username"
+                        placeholder="Enter your username or email"
                         required
                         style="width: 100%;"
                     >
                 </div>
                 
                 <div style="margin-bottom: 25px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--deep-blue);">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600; color: #f1f5f9;">
                         Password
                     </label>
                     <div style="position: relative;">
@@ -50,10 +50,10 @@
                         <button 
                             type="button" 
                             onclick="togglePassword('login-password', this)"
-                            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 5px; color: #64748b; font-size: 1.2rem;"
+                            style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; padding: 5px; color: #64748b; font-size: 1.1rem;"
                             aria-label="Toggle password visibility"
                         >
-                            👁️
+                            <i class="fa-solid fa-eye"></i>
                         </button>
                     </div>
                 </div>
@@ -69,17 +69,6 @@
                     Register here
                 </a>
             </p>
-            
-            <div style="margin-top: 30px; padding: 15px; background: #fff3cd; border-radius: 8px; border: 1px solid var(--gold);">
-                <p style="margin: 0 0 10px 0; font-size: 0.95rem; color: var(--deep-blue); text-align: center; font-weight: 600;">
-                    Admin Dashboard Access
-                </p>
-                <p style="margin: 0; font-size: 0.9rem; color: #64748b; text-align: center;">
-                    Username: <code style="background: white; padding: 2px 8px; border-radius: 4px; color: var(--deep-blue); font-weight: 600;">admin</code><br>
-                    Password: <code style="background: white; padding: 2px 8px; border-radius: 4px; color: var(--deep-blue); font-weight: 600;">fahadsikder</code><br>
-                    <span style="font-size: 0.85rem; color: #94a3b8;">Access at: <a href="/admin/" style="color: var(--gold);">/admin/</a></span>
-                </p>
-            </div>
         </div>
     </div>
 </div>
@@ -89,10 +78,10 @@ function togglePassword(inputId, button) {
     const input = document.getElementById(inputId);
     if (input.type === 'password') {
         input.type = 'text';
-        button.textContent = '🙈';
+        button.innerHTML = '<i class="fa-solid fa-eye-slash"></i>';
     } else {
         input.type = 'password';
-        button.textContent = '👁️';
+        button.innerHTML = '<i class="fa-solid fa-eye"></i>';
     }
 }
 </script>
