@@ -20,7 +20,13 @@ if not USE_SUPABASE and not USE_SQLITE:
     except ImportError:
         pass
 
-# Supabase configuration
+# Supabase API Configuration
+SUPABASE_URL = os.getenv('SUPABASE_URL', '')
+SUPABASE_PUBLISHABLE_KEY = os.getenv('SUPABASE_PUBLISHABLE_KEY', '')
+SUPABASE_SECRET_KEY = os.getenv('SUPABASE_SECRET_KEY', '')
+SUPABASE_JWKS_URL = os.getenv('SUPABASE_JWKS_URL', '')
+
+# Supabase Database Configuration
 SUPABASE_DB_HOST = os.getenv('SUPABASE_DB_HOST', '')
 SUPABASE_DB_NAME = os.getenv('SUPABASE_DB_NAME', 'postgres')
 SUPABASE_DB_USER = os.getenv('SUPABASE_DB_USER', 'postgres')
